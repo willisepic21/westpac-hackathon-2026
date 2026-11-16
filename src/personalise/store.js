@@ -4,7 +4,11 @@
 
 import { useSyncExternalStore } from 'react';
 
-let state = null; // null = standard home, otherwise { answers }
+import { DEFAULT_ANSWERS } from './questions';
+
+// null = standard home, otherwise { answers, sections? }.
+// `sections` is set when the AI assistant adds / removes / moves widgets; it replaces the template's list.
+let state = null;
 const listeners = new Set();
 
 const subscribe = (listener) => {
@@ -12,9 +16,23 @@ const subscribe = (listener) => {
   return () => listeners.delete(listener);
 };
 
-export function setPersonalisation(answers) {
-  state = answers ? { answers } : null;
+const emit = (next) => {
+  state = next;
   listeners.forEach((l) => l());
+};
+
+// Finalising the questions picks a fresh template, so any AI widget edits are dropped.
+export function setPersonalisation(answers) {
+  emit(answers ? { answers } : null);
+}
+
+// Save the AI's edited widget list. From the standard home this starts a personalised home with default answers.
+export function setHomeSections(sections) {
+  emit({ answers: state?.answers ?? DEFAULT_ANSWERS, sections });
+}
+
+export function getPersonalisation() {
+  return state;
 }
 
 export function usePersonalisation() {

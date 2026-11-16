@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 
 import WestpacLogo from '../../components/WestpacLogo';
+import { useTabBarSpace } from '../../components/GlassTabBar';
 import { HomeStyleProvider, T } from './ui';
 import GoalSection from './widgets/GoalWidgets';
 import MoveSection from './widgets/MoveMoney';
@@ -71,6 +72,7 @@ function AskBar({ theme, d, onAsk, onVoice }) {
 
 export default function PersonalisedHome({ home, onEdit, onAsk, onVoice }) {
   const insets = useSafeAreaInsets();
+  const tabBarSpace = useTabBarSpace();
   const { theme, d, template } = home;
 
   return (
@@ -78,7 +80,7 @@ export default function PersonalisedHome({ home, onEdit, onAsk, onVoice }) {
       <StatusBar style={theme.dark ? 'light' : 'dark'} />
       <ScrollView
         style={{ flex: 1, backgroundColor: theme.bg }}
-        contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: 32 }}
+        contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: tabBarSpace }}
       >
         <View style={{ paddingHorizontal: d.pad }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>

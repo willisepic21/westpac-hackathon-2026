@@ -8,7 +8,14 @@ import AssistantSheet from '../src/voice/AssistantSheet';
 import PersonalisedHome from '../src/personalise/PersonalisedHome';
 import QuestionSheet from '../src/personalise/QuestionSheet';
 import { buildHome } from '../src/personalise/buildHome';
-import { usePersonalisation, setPersonalisation } from '../src/personalise/store';
+import {
+  usePersonalisation,
+  setPersonalisation,
+  getPersonalisation,
+  setHomeSections,
+} from '../src/personalise/store';
+import { createHomeTools } from '../src/personalise/homeTools';
+import { useTabBarSpace } from '../components/GlassTabBar';
 
 // Brand colours used across the mockup
 const RED = '#D5002B';
@@ -130,7 +137,15 @@ export default function HomeScreen() {
   // Personalised home: finalised answers from the question pop-up (null = standard home)
   const personal = usePersonalisation();
   const [editing, setEditing] = useState(false);
-  const home = useMemo(() => (personal ? buildHome(personal.answers) : null), [personal]);
+  const home = useMemo(
+    () => (personal ? buildHome(personal.answers, { sections: personal.sections }) : null),
+    [personal],
+  );
+  // Lets the assistant see the widgets on Home and add / remove / move them.
+  const homeTools = useMemo(
+    () => createHomeTools({ getState: getPersonalisation, setSections: setHomeSections }),
+    [],
+  );
 
   const onAsk = (question) => setAssistant({ question });
   const onVoice = () => setAssistant({ listen: true });
@@ -142,6 +157,8 @@ export default function HomeScreen() {
         onClose={() => setAssistant(null)}
         initialQuestion={assistant?.question}
         autoListen={assistant?.listen}
+        tools={homeTools.tools}
+        getContext={homeTools.context}
       />
       <QuestionSheet
         visible={editing}
@@ -163,22 +180,28 @@ export default function HomeScreen() {
     </>
   );
 
-  if (home) {
-    return (
-      <View style={{ flex: 1 }}>
-        <PersonalisedHome home={home} onEdit={() => setEditing(true)} onAsk={onAsk} onVoice={onVoice} />
-        {sheets}
-      </View>
-    );
-  }
-
+  // The sheets stay in one place in the tree, so an AI widget edit that switches the standard home
+  // to the personalised one doesn't remount (and close) the assistant mid-conversation.
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 24 }}>
-      <Header onAsk={onAsk} onVoice={onVoice} />
+    <View style={{ flex: 1 }}>
+      {home ? (
+        <PersonalisedHome home={home} onEdit={() => setEditing(true)} onAsk={onAsk} onVoice={onVoice} />
+      ) : (
+        <StandardHome onAsk={onAsk} onVoice={onVoice} onPersonalise={() => setEditing(true)} />
+      )}
       {sheets}
+    </View>
+  );
+}
+
+function StandardHome({ onAsk, onVoice, onPersonalise }) {
+  const tabBarSpace = useTabBarSpace();
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: tabBarSpace }}>
+      <Header onAsk={onAsk} onVoice={onVoice} />
 
       <View style={styles.panel}>
-        <TouchableOpacity style={styles.personaliseCard} onPress={() => setEditing(true)} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.personaliseCard} onPress={onPersonalise} activeOpacity={0.85}>
           <Ionicons name="sparkles" size={22} color="#fff" />
           <View style={{ flex: 1 }}>
             <Text style={styles.personaliseTitle}>Make this home yours</Text>

@@ -1,9 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
+import { useTabBarSpace } from '../components/GlassTabBar';
+
 export default function MoreScreen() {
+  const tabBarSpace = useTabBarSpace();
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: tabBarSpace }]}>
       <Text style={styles.title}>More Screen</Text>
       <Text style={styles.subtitle}>Ready for teammate mockup</Text>
     </View>

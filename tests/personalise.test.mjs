@@ -80,3 +80,67 @@ test('every question has options and every answer combination builds', () => {
           assert.ok(home.theme && home.d && home.sections.length > 0);
         }
 });
+
+// ---------- AI widget editing ----------
+
+test('editLayout adds, removes and moves widgets without mutating the list', async () => {
+  const { editLayout } = await import('../src/personalise/widgetCatalog.js');
+  const start = [{ type: 'goal', variant: 'hero' }, { type: 'recent', count: 2 }];
+
+  const added = editLayout(start, { action: 'add', type: 'bills', position: 1 });
+  assert.deepEqual(added.sections.map((s) => s.type), ['bills', 'goal', 'recent']);
+  assert.equal(added.sections[0].variant, 'hero', 'defaults to the first variant');
+  assert.equal(start.length, 2);
+
+  const bottom = editLayout(start, { action: 'add', type: 'pinned', variant: 'grid' });
+  assert.deepEqual(bottom.sections.at(-1), { type: 'pinned', variant: 'grid' });
+  assert.equal(editLayout(start, { action: 'add', type: 'bills', variant: 'nope' }).sections[2].variant, 'hero');
+
+  assert.deepEqual(editLayout(start, { action: 'remove', type: 'goal' }).sections.map((s) => s.type), ['recent']);
+  assert.deepEqual(editLayout(start, { action: 'move', type: 'recent', position: 1 }).sections.map((s) => s.type), ['recent', 'goal']);
+
+  assert.throws(() => editLayout(start, { action: 'add', type: 'goal' }), /already on the home/);
+  assert.throws(() => editLayout(start, { action: 'remove', type: 'bills' }), /not on the home/);
+  assert.throws(() => editLayout(start, { action: 'add', type: 'crypto' }), /Unknown widget/);
+});
+
+test('every catalogue widget is documented and every template only uses catalogue widgets', async () => {
+  const { WIDGETS, WIDGET_TYPES } = await import('../src/personalise/widgetCatalog.js');
+  for (const t of TEMPLATES) {
+    for (const s of t.sections) {
+      assert.ok(WIDGETS[s.type], `${t.id} uses unknown widget ${s.type}`);
+      if (s.variant) assert.ok(WIDGETS[s.type].variants.includes(s.variant), `${t.id}: ${s.type}/${s.variant}`);
+    }
+  }
+  assert.ok(WIDGET_TYPES.length >= 9);
+});
+
+test('custom sections replace the template, and adding move money shows contacts', () => {
+  const sections = [{ type: 'bills', variant: 'list' }, { type: 'move', variant: 'button' }];
+  const home = buildHome(answers({ transfers: 'rarely' }), { sections });
+  assert.deepEqual(home.sections, sections);
+  assert.equal(home.showContacts, true);
+});
+
+test('home tools let the AI see the layout and edit it, starting from the standard home', async () => {
+  const { createHomeTools } = await import('../src/personalise/homeTools.js');
+  let state = null;
+  const { tools, context } = createHomeTools({
+    getState: () => state,
+    setSections: (sections) => { state = { answers: state?.answers ?? DEFAULT_ANSWERS, sections }; },
+  });
+  const tool = (name) => tools.find((t) => t.name === name);
+
+  assert.match(context(), /standard home/);
+  assert.match(context(), /netWorth: Net worth/, 'catalogue is in the context');
+  assert.doesNotMatch(context(), /\$/, 'no balances are shown to the AI');
+
+  const result = tool('add_widget').run({ type: 'netWorth', position: 1 });
+  assert.match(result, /Added Net worth at position 1/);
+  assert.equal(state.sections[0].type, 'netWorth');
+  assert.match(context(), /right now, top to bottom:\n1\. netWorth/);
+
+  tool('remove_widget').run({ type: 'netWorth' });
+  assert.ok(!state.sections.some((s) => s.type === 'netWorth'));
+  assert.throws(() => tool('remove_widget').run({ type: 'netWorth' }), /not on the home/);
+});

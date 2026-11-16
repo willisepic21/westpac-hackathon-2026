@@ -55,7 +55,8 @@ export function prioritise(sections, frequency) {
   return out;
 }
 
-export function buildHome(rawAnswers, { templateId } = {}) {
+// `sections` (optional) is a list edited by the AI assistant; it replaces the template's sections as-is.
+export function buildHome(rawAnswers, { templateId, sections: customSections } = {}) {
   const answers = { ...DEFAULT_ANSWERS, ...rawAnswers };
   const template =
     (templateId && TEMPLATES.find((t) => t.id === templateId)) || rankTemplates(answers)[0];
@@ -64,16 +65,23 @@ export function buildHome(rawAnswers, { templateId } = {}) {
   const theme = PALETTES[paletteKey] ?? PALETTES[template.palette];
   const density = DENSITY[answers.density] ? answers.density : template.density;
 
-  const showContacts = answers.transfers === 'others' || answers.transfers === 'both';
+  let showContacts = answers.transfers === 'others' || answers.transfers === 'both';
   const showTransfer = answers.transfers === 'self' || answers.transfers === 'both';
   const weeklyTracker = answers.weeklyTracker === 'yes';
 
-  let sections = template.sections.filter((s) => {
-    if (s.type === 'weekly') return weeklyTracker;
-    if (s.type === 'move') return showContacts || showTransfer;
-    return true;
-  });
-  sections = prioritise(sections, answers.frequency);
+  let sections;
+  if (customSections) {
+    sections = customSections;
+    // The user asked for move money even though they said "rarely": show their PayID contacts.
+    if (!showContacts && !showTransfer && sections.some((s) => s.type === 'move')) showContacts = true;
+  } else {
+    sections = template.sections.filter((s) => {
+      if (s.type === 'weekly') return weeklyTracker;
+      if (s.type === 'move') return showContacts || showTransfer;
+      return true;
+    });
+    sections = prioritise(sections, answers.frequency);
+  }
 
   return {
     answers,

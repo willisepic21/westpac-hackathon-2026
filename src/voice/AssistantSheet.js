@@ -1,7 +1,8 @@
 // Pop-up AI assistant: talk (speech-to-text via Groq) or type, and get a reply from the Groq LLM.
 //
 //   <AssistantSheet visible={open} onClose={() => setOpen(false)}
-//                   initialQuestion="..." autoListen context="Account summary..." />
+//                   initialQuestion="..." autoListen context="Account summary..."
+//                   tools={[...]} getContext={() => '...'} />   (tools / getContext: see VoiceAssistant)
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -24,10 +25,18 @@ import { useVoiceRecorder } from './useVoiceRecorder';
 const RED = '#D5002B';
 const NAVY = '#1F1C4F';
 
-export default function AssistantSheet({ visible, onClose, initialQuestion, autoListen, context }) {
+export default function AssistantSheet({
+  visible,
+  onClose,
+  initialQuestion,
+  autoListen,
+  context,
+  tools,
+  getContext,
+}) {
   const insets = useSafeAreaInsets();
   const assistant = useRef(null);
-  if (!assistant.current) assistant.current = new VoiceAssistant({ context, language: 'en' });
+  if (!assistant.current) assistant.current = new VoiceAssistant({ context, tools, getContext, language: 'en' });
   const recorder = useVoiceRecorder();
   const scroll = useRef(null);
 
@@ -115,7 +124,7 @@ export default function AssistantSheet({ visible, onClose, initialQuestion, auto
             onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}
           >
             {log.length === 0 && !busy && !recorder.isRecording && (
-              <Text style={styles.hint}>Tap the mic and ask about your accounts, bills or spending.</Text>
+              <Text style={styles.hint}>Tap the mic and ask about your accounts, bills or spending, or ask me to add or remove widgets on your home.</Text>
             )}
             {log.map((m, i) => (
               <Text key={i} style={[styles.bubble, m.role === 'user' ? styles.user : styles.ai]}>

@@ -14,3 +14,5 @@
 - rate-limit API endpoints
 - AI only sets rules for automation without actually seeing the data
 - limit AI usage to only being for bank related queries, deny queries that are not related to the app
+- AI can see which widgets are on the home page and add, remove or reorder them when the user asks
+	- it only sees widget names and their order, not the balances or transactions inside them

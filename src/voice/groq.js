@@ -4,6 +4,9 @@ const BASE_URL = 'https://api.groq.com/openai/v1';
 
 export const DEFAULT_CHAT_MODEL = 'qwen/qwen3.8-27b';
 export const DEFAULT_STT_MODEL = 'whisper-large-v3-turbo';
+// Used when the AI has tools (e.g. editing Home widgets). In testing, qwen often said it had changed the home
+// without calling a tool, while gpt-oss called the right tool every time.
+export const DEFAULT_TOOL_MODEL = 'openai/gpt-oss-120b';
 
 // The team's AI permission spec, imported as a string (see metro.config.js / md-transformer.js).
 // Editing ai_perms.md changes the rules the assistant is given.
@@ -36,7 +39,22 @@ function resolveKey(apiKey) {
   return key;
 }
 
-async function groqFetch(path, body, { apiKey, fetchImpl = fetch } = {}) {
+// Free tier rate limits are per minute; a short wait usually clears them.
+const MAX_RETRY_WAIT_MS = 20000;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// How long to wait before retrying a 429: the retry-after header, or the "try again in 1.5s" text in the
+// error (browsers can hide the header). null if unknown or too long to wait.
+function retryWaitMs(response, message) {
+  let ms = Number(response.headers?.get?.('retry-after')) * 1000;
+  if (!(ms > 0)) {
+    const m = /try again in (?:(\d+)m)?([\d.]+)(ms|s)/.exec(message ?? '');
+    if (m) ms = (Number(m[1] ?? 0) * 60 + Number(m[2]) / (m[3] === 'ms' ? 1000 : 1)) * 1000;
+  }
+  return ms > 0 && ms <= MAX_RETRY_WAIT_MS ? ms : null;
+}
+
+async function groqFetch(path, body, { apiKey, fetchImpl = fetch, retries = 2 } = {}) {
   const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
   const headers = { Authorization: `Bearer ${resolveKey(apiKey)}` };
   // For FormData, let fetch set the multipart Content-Type (with its boundary).
@@ -54,6 +72,12 @@ async function groqFetch(path, body, { apiKey, fetchImpl = fetch } = {}) {
       message = err?.error?.message ?? message;
     } catch {
       // body wasn't JSON; keep the status text
+    }
+    // Rate limited (common with tool calls, which make several requests per question): wait and retry.
+    const wait = response.status === 429 && retries > 0 ? retryWaitMs(response, message) : null;
+    if (wait != null) {
+      await sleep(wait);
+      return groqFetch(path, body, { apiKey, fetchImpl, retries: retries - 1 });
     }
     throw new Error(`Groq API error: ${message}`);
   }
@@ -73,19 +97,72 @@ export async function transcribe(form, { model = DEFAULT_STT_MODEL, language, ..
   return (json.text ?? '').trim();
 }
 
-/** Send a chat conversation to Groq and return the reply text. */
-export async function chat(
+// One chat completion; returns Groq's message object ({ content, tool_calls? }).
+async function complete(
   messages,
-  { model = DEFAULT_CHAT_MODEL, maxTokens = DEFAULT_MAX_TOKENS, ...options } = {},
+  { model = DEFAULT_CHAT_MODEL, maxTokens = DEFAULT_MAX_TOKENS, tools, toolChoice, ...options } = {},
 ) {
   const body = { model, messages, max_completion_tokens: maxTokens };
   // Qwen models "think" before answering, which spends output tokens and adds delay.
   // A quick conversational reply doesn't need it, so switch reasoning off.
   if (model.startsWith('qwen/')) body.reasoning_effort = 'none';
+  // gpt-oss can't switch reasoning off; keep it short.
+  if (model.startsWith('openai/gpt-oss')) body.reasoning_effort = 'low';
+  if (tools?.length) {
+    body.tools = tools.map(({ name, description, parameters }) => ({
+      type: 'function',
+      function: { name, description, parameters },
+    }));
+    if (toolChoice) body.tool_choice = toolChoice;
+  }
 
   const response = await groqFetch('/chat/completions', body, options);
   const json = await response.json();
-  const content = json.choices?.[0]?.message?.content ?? '';
-  // Drop reasoning if a model still returns it inline.
-  return content.replace(/<think>[\s\S]*?(<\/think>|$)/g, '').trim();
+  return json.choices?.[0]?.message ?? {};
+}
+
+// Drop reasoning if a model still returns it inline.
+const cleanReply = (content) => (content ?? '').replace(/<think>[\s\S]*?(<\/think>|$)/g, '').trim();
+
+/** Send a chat conversation to Groq and return the reply text. */
+export async function chat(messages, options) {
+  return cleanReply((await complete(messages, options)).content);
+}
+
+async function runTool(tools, call) {
+  const tool = tools.find((t) => t.name === call.function?.name);
+  if (!tool) return `Error: there is no tool called "${call.function?.name}".`;
+  try {
+    const args = call.function.arguments ? JSON.parse(call.function.arguments) : {};
+    return String(await tool.run(args));
+  } catch (e) {
+    return `Error: ${e.message}`;
+  }
+}
+
+/**
+ * Chat where the AI may call tools: [{ name, description, parameters (JSON schema), run(args) -> string }].
+ * Runs the tools it asks for, sends the results back, and repeats until it replies with text
+ * (after `maxRounds` tool rounds it must answer). Returns { reply, messages } with the full history.
+ */
+export async function chatWithTools(messages, { tools = [], maxRounds = 3, ...options } = {}) {
+  if (tools.length && !options.model) options = { ...options, model: DEFAULT_TOOL_MODEL };
+  const history = [...messages];
+  for (let round = 0; ; round++) {
+    const message = await complete(history, {
+      ...options,
+      tools,
+      toolChoice: round >= maxRounds ? 'none' : undefined,
+    });
+    const calls = message.tool_calls ?? [];
+    if (!calls.length) {
+      const reply = cleanReply(message.content);
+      history.push({ role: 'assistant', content: reply });
+      return { reply, messages: history };
+    }
+    history.push({ role: 'assistant', content: message.content ?? '', tool_calls: calls });
+    for (const call of calls) {
+      history.push({ role: 'tool', tool_call_id: call.id, content: await runTool(tools, call) });
+    }
+  }
 }
