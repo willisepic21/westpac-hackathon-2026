@@ -186,7 +186,7 @@ export default function MoveSection({ section, home }) {
         ) : section.variant === 'slider' ? (
           <TransferSlider transfer={transfer} onDone={() => setDone(true)} />
         ) : (
-          <TransferButton transfer={transfer} onDone={() => setDone(true)} />
+          <TransferSlider transfer={transfer} onDone={() => setDone(true)} />
         )}
       </Card>
     </View>
