@@ -1,0 +1,16 @@
+- Read only access to categorised data
+	- transaction history, account balances, spending categories, provided insights, budgeting summaries
+- grant access to Public Financial Data
+	- gain access to real-time market data, exchange rates, tax regulations
+- alerts/Flagging
+	- monitor transactions, bill due dates
+	- detect defects or anomalies
+- autonomous transfer between their accounts within app only
+	- needs approved prompt; will have noted automations, or open request by AI
+- block from reading credentials eg, plain text passwords, TFN, SSN, bank account details
+- Deny AI from security settings such as account passwords, other MFA, whitelist
+- prevent AI approval of loans or upping credit card limit
+- AI does not have direct SQL or write access
+- rate-limit API endpoints
+- AI only sets rules for automation without actually seeing the data
+- limit AI usage to only being for bank related queries, deny queries that are not related to the app
