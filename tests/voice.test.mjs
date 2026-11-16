@@ -63,3 +63,14 @@ test('system prompt carries the ai_perms.md rules', async () => {
     assert.match(DEFAULT_SYSTEM_PROMPT, rule);
   }
 });
+
+test('system prompt includes every line of ai_perms.md', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { DEFAULT_SYSTEM_PROMPT } = await import('../src/voice/groq.js');
+  const lines = readFileSync(new URL('../ai_perms.md', import.meta.url), 'utf8')
+    .split('\n')
+    .map((line) => line.replace(/^\s*-\s*/, '').trim())
+    .filter(Boolean);
+  assert.ok(lines.length > 0);
+  for (const line of lines) assert.ok(DEFAULT_SYSTEM_PROMPT.includes(line), `missing: ${line}`);
+});

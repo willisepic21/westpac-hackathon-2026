@@ -16,7 +16,8 @@ for the ai implementation in the app all the rules for the ai are written in ai_
   `HomeScreen.js`, `AccountsScreen.js`, `SearchScreen.js`, `PaymentsScreen.js`, `MoreScreen.js`.
 - AI assistant: `src/voice/` (Groq speech-to-text with Whisper + Groq chat with `qwen/qwen3.8-27b`).
   The Home search box has a mic button that opens `src/voice/AssistantSheet.js`. Its system prompt in
-  `src/voice/groq.js` implements the `ai_perms.md` rules. Needs `EXPO_PUBLIC_GROQ_API_KEY` in `.env`
+  `src/voice/groq.js` imports `ai_perms.md` directly (`metro.config.js` + `md-transformer.js` let Metro
+  import `.md` as a string; `tests/register-md.mjs` does the same for Node), so edit the rules there. Needs `EXPO_PUBLIC_GROQ_API_KEY` in `.env`
   (see `.env.example`). Replies are capped at 600 tokens (Groq free tier: 1000 output tokens/min).
 - `npm test` runs `tests/voice.test.mjs` (node:test, no device needed).
 

@@ -18,7 +18,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "node --test tests/voice.test.mjs"
+    "test": "node --import ./tests/register-md.mjs --test tests/voice.test.mjs"
   },
   "private": true
 }
