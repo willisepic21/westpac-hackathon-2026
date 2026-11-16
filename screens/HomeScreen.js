@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
+import WestpacLogo from '../components/WestpacLogo';
 import AssistantSheet from '../src/voice/AssistantSheet';
 
 // Brand colours used across the mockup
@@ -50,7 +51,7 @@ function Header({ onAsk, onVoice }) {
 
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
-          <Text style={styles.logo}>W</Text>
+          <WestpacLogo width={64} color="#fff" />
           <TouchableOpacity>
             <Text style={styles.headerLink}>Contact us</Text>
           </TouchableOpacity>
@@ -166,7 +167,7 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    backgroundColor: RED,
+    backgroundImage: "linear-gradient(45deg, #ff0000, #0046ff)",
     paddingHorizontal: 20,
     paddingBottom: 60, // room for the panel to overlap
     overflow: 'hidden',
@@ -186,7 +187,7 @@ const styles = StyleSheet.create({
     right: -150,
     width: 320,
     height: 320,
-    backgroundColor: PURPLE,
+    backgroundColor: RED,
     transform: [{ rotate: '35deg' }],
   },
   headerRow: {
@@ -195,7 +196,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 18 },
-  logo: { color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: -2 },
   headerLink: { color: '#fff', fontSize: 16 },
   heading: {
     color: '#fff',
