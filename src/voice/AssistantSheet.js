@@ -39,6 +39,7 @@ export default function AssistantSheet({
   if (!assistant.current) assistant.current = new VoiceAssistant({ context, tools, getContext, language: 'en' });
   const recorder = useVoiceRecorder();
   const scroll = useRef(null);
+  const session = useRef(0); // bumped on close, so replies that arrive after closing are dropped
 
   const [input, setInput] = useState('');
   const [log, setLog] = useState([]);
@@ -48,13 +49,15 @@ export default function AssistantSheet({
   const addMessage = (role, text) => setLog((l) => [...l, { role, text }]);
 
   async function run(task) {
+    const current = session.current;
+    const stillOpen = () => current === session.current;
     setError(null);
     try {
-      await task();
+      await task(stillOpen);
     } catch (e) {
-      setError(e.message);
+      if (stillOpen()) setError(e.message);
     } finally {
-      setBusy(null);
+      if (stillOpen()) setBusy(null);
     }
   }
 
@@ -62,7 +65,10 @@ export default function AssistantSheet({
     if (!text || busy) return;
     addMessage('user', text);
     setBusy('Thinking…');
-    run(async () => addMessage('ai', await assistant.current.ask(text)));
+    run(async (stillOpen) => {
+      const reply = await assistant.current.ask(text);
+      if (stillOpen()) addMessage('ai', reply);
+    });
   }
 
   function sendText() {
@@ -78,15 +84,16 @@ export default function AssistantSheet({
       return;
     }
     setBusy('Transcribing…');
-    run(async () => {
+    run(async (stillOpen) => {
       const uri = await recorder.stop();
       const { reply } = await assistant.current.respondToRecording(uri, {
         onTranscript: (transcript) => {
+          if (!stillOpen()) return;
           addMessage('user', transcript);
           setBusy('Thinking…');
         },
       });
-      addMessage('ai', reply);
+      if (stillOpen()) addMessage('ai', reply);
     });
   }
 
@@ -100,6 +107,13 @@ export default function AssistantSheet({
 
   async function close() {
     if (recorder.isRecording) await recorder.stop().catch(() => {});
+    // Start fresh next time: clear the AI's memory of the chat and the on-screen log.
+    session.current += 1;
+    assistant.current.reset();
+    setLog([]);
+    setInput('');
+    setBusy(null);
+    setError(null);
     onClose?.();
   }
 
