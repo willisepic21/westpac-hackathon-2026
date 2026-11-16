@@ -1,0 +1,80 @@
+// Thin client for the Groq REST API (OpenAI-compatible): speech-to-text + chat.
+
+const BASE_URL = 'https://api.groq.com/openai/v1';
+
+export const DEFAULT_CHAT_MODEL = 'qwen/qwen3.8-27b';
+export const DEFAULT_STT_MODEL = 'whisper-large-v3-turbo';
+
+// The user's message comes from speech recognition, so it may contain small transcription errors.
+export const DEFAULT_SYSTEM_PROMPT =
+  'You are a helpful assistant. The user is speaking to you and their words have been ' +
+  'transcribed automatically, so they may contain small transcription errors; infer what ' +
+  'they meant. Keep answers concise and conversational.';
+
+// Groq rejects requests whose *possible* output exceeds the account's output-tokens-per-minute
+// limit (1000 on the free tier), and without a cap it assumes a large default. So always send
+// an explicit cap below that limit.
+export const DEFAULT_MAX_TOKENS = 600;
+
+function resolveKey(apiKey) {
+  // EXPO_PUBLIC_ vars are inlined into the app bundle at build time.
+  const key = apiKey ?? process.env.EXPO_PUBLIC_GROQ_API_KEY;
+  if (!key) {
+    throw new Error('Missing Groq API key. Set EXPO_PUBLIC_GROQ_API_KEY in .env.local.');
+  }
+  return key;
+}
+
+async function groqFetch(path, body, { apiKey, fetchImpl = fetch } = {}) {
+  const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
+  const headers = { Authorization: `Bearer ${resolveKey(apiKey)}` };
+  // For FormData, let fetch set the multipart Content-Type (with its boundary).
+  if (!isForm) headers['Content-Type'] = 'application/json';
+
+  const response = await fetchImpl(`${BASE_URL}${path}`, {
+    method: 'POST',
+    headers,
+    body: isForm ? body : JSON.stringify(body),
+  });
+  if (!response.ok) {
+    let message = `${response.status} ${response.statusText}`;
+    try {
+      const err = await response.json();
+      message = err?.error?.message ?? message;
+    } catch {
+      // body wasn't JSON; keep the status text
+    }
+    throw new Error(`Groq API error: ${message}`);
+  }
+  return response;
+}
+
+/**
+ * Transcribe audio to text with Groq Whisper.
+ * `form` is a FormData that already has the audio appended as `file` (see appendAudioFile).
+ */
+export async function transcribe(form, { model = DEFAULT_STT_MODEL, language, ...options } = {}) {
+  form.append('model', model);
+  form.append('response_format', 'json');
+  if (language) form.append('language', language);
+  const response = await groqFetch('/audio/transcriptions', form, options);
+  const json = await response.json();
+  return (json.text ?? '').trim();
+}
+
+/** Send a chat conversation to Groq and return the reply text. */
+export async function chat(
+  messages,
+  { model = DEFAULT_CHAT_MODEL, maxTokens = DEFAULT_MAX_TOKENS, ...options } = {},
+) {
+  const body = { model, messages, max_completion_tokens: maxTokens };
+  // Qwen models "think" before answering, which spends output tokens and adds delay.
+  // A quick conversational reply doesn't need it, so switch reasoning off.
+  if (model.startsWith('qwen/')) body.reasoning_effort = 'none';
+
+  const response = await groqFetch('/chat/completions', body, options);
+  const json = await response.json();
+  const content = json.choices?.[0]?.message?.content ?? '';
+  // Drop reasoning if a model still returns it inline.
+  return content.replace(/<think>[\s\S]*?(<\/think>|$)/g, '').trim();
+}
