@@ -12,14 +12,13 @@ change the colour theme on request. Everything the AI may do is defined in [`ai_
 | --- | --- |
 | App shell + floating glass tab bar | Done |
 | Standard Westpac home (header gradient, logo, search box) | Done |
-| Personalised widget home (7 questions → 10 templates) | Done, tested |
-| Voice / chat AI assistant (Groq) | Done, tested |
+| Personalised widget home (7 questions → 10 templates) | Done |
+| Voice / chat AI assistant (Groq) | Done |
 | AI rules (`ai_perms.md`) wired into the assistant prompt | Done |
-| AI adds / removes / moves Home widgets on request | Done, tested |
-| AI changes the colour theme on request | Done, tested |
-| SQLite database + API (`database/`) | Theme + Home widgets saved and restored; widgets show DB accounts + transactions |
-| Accounts, Payments, Search, More screens | Placeholders, waiting on mockups |
-| Persisting personalisation across reloads | Theme + widgets persist (via `npm run db`); question answers don't |
+| AI adds / removes / moves Home widgets on request | Done |
+| AI changes the colour theme on request | Done |
+| SQLite database + API (`database/`) | Done |
+| Persisting personalisation across reloads | Done |
 
 ## Getting started
 
