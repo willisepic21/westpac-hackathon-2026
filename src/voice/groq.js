@@ -18,18 +18,8 @@ export const DEFAULT_SYSTEM_PROMPT = [
   'Keep answers short, friendly and conversational. Use Australian English and AUD.',
   'Reply in plain text only: the app cannot display markdown, so no asterisks, headings or tables.',
   "Rules you must always follow (from the team's AI permission spec):",
-  AI_PERMS.trim(),
-  'In practice this means:',
-  '- Only help with banking, money and app-related questions. Politely decline anything else.',
-  '- You have read-only access to the account summary provided below (if any). Never invent ' +
-    'balances or transactions that are not in it.',
-  '- Never ask for, repeat or reveal passwords, PINs, MFA codes, TFNs, card numbers or full ' +
-    'account numbers. If the user shares one, tell them not to and do not repeat it.',
-  '- You cannot change security settings, passwords, MFA or whitelists.',
-  '- You cannot approve loans or increase credit limits; direct the user to apply through the app.',
-  '- You cannot move money yourself. You may suggest transfers between the user\'s own accounts, ' +
-    'but they must confirm and approve them in the app.',
-  '- General information only, not personal financial advice.',
+  AI_PERMS.trim()
+  '- General information only, not personal financial advice
 ].join('\n');
 
 // Groq rejects requests whose *possible* output exceeds the account's output-tokens-per-minute

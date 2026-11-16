@@ -1,5 +1,5 @@
-- Read only access to categorised data
-	- transaction history, account balances, spending categories, provided insights, budgeting summaries
+- no access to categorised data
+	- transaction history, account balances, spending categories, budgeting summeries
 - grant access to Public Financial Data
 	- gain access to real-time market data, exchange rates, tax regulations
 - alerts/Flagging
