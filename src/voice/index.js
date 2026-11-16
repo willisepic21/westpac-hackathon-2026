@@ -32,13 +32,17 @@ export class VoiceAssistant {
     sttModel = DEFAULT_STT_MODEL,
     language, // optional ISO-639-1 code, e.g. 'en' — improves accuracy and speed
     systemPrompt = DEFAULT_SYSTEM_PROMPT,
+    context, // optional read-only data for the AI, e.g. an account summary
   } = {}) {
     this.apiKey = apiKey;
     this.chatModel = chatModel;
     this.maxTokens = maxTokens;
     this.sttModel = sttModel;
     this.language = language;
-    this.messages = [{ role: 'system', content: systemPrompt }];
+    const content = context
+      ? `${systemPrompt}\n\nAccount summary (read-only):\n${context}`
+      : systemPrompt;
+    this.messages = [{ role: 'system', content }];
   }
 
   /** Speech-to-text: recording URI -> transcript. */

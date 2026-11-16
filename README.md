@@ -11,12 +11,15 @@ Speak to the app: your voice is recorded, turned into text with Groq speech-to-t
 
 ```bash
 npm install
-cp .env.example .env.local   # then put your key in EXPO_PUBLIC_GROQ_API_KEY
+cp .env.example .env   # then put your key in EXPO_PUBLIC_GROQ_API_KEY
 npx expo start
 ```
 
-`App.js` shows a demo chat screen (`src/voice/VoiceAssistantDemo.js`): tap the mic, speak, tap stop.
-Your words appear as text and the AI's reply appears below. You can also type instead.
+On the **Home** tab, tap the mic in the "How can we help you today?" box and speak, or type a
+question and press enter. The Westpac Assistant pop-up (`src/voice/AssistantSheet.js`) shows your
+words and the AI's reply. The AI follows the rules in `ai_perms.md` (banking questions only, never
+asks for credentials, can't approve loans or move money) and gets the Home screen's mock account
+balances as read-only context.
 
 > **Hackathon only:** `EXPO_PUBLIC_` variables are bundled into the app, so the Groq key can be
 > extracted by anyone who has the app. For anything beyond a demo, call Groq from a backend instead.
@@ -26,7 +29,7 @@ Your words appear as text and the AI's reply appears below. You can also type in
 ```js
 import { VoiceAssistant, useVoiceRecorder } from './src/voice';
 
-const assistant = new VoiceAssistant({ language: 'en' }); // language is optional
+const assistant = new VoiceAssistant({ language: 'en', context: 'Choice: $469.30' }); // both optional
 const recorder = useVoiceRecorder();                       // inside a component
 
 await recorder.start();                 // asks for mic permission the first time

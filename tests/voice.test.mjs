@@ -56,3 +56,10 @@ test('Groq errors surface their message', async () => {
   await assert.rejects(chat([], { apiKey: 'bad', fetchImpl }), /Invalid API Key/);
   await assert.rejects(transcribe(new FormData(), { apiKey: 'bad', fetchImpl }), /Invalid API Key/);
 });
+
+test('system prompt carries the ai_perms.md rules', async () => {
+  const { DEFAULT_SYSTEM_PROMPT } = await import('../src/voice/groq.js');
+  for (const rule of [/only help with banking/i, /never ask for.*passwords/i, /cannot approve loans/i, /cannot move money/i]) {
+    assert.match(DEFAULT_SYSTEM_PROMPT, rule);
+  }
+});
