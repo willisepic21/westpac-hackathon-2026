@@ -3,6 +3,7 @@ This is a project for the westpac hackathon 2026.
 The aim of the project is a proof of concept of a ai driven personalising home page.
 
 for the ai implementation in the app all the rules for the ai are written in ai_perms.md
+(including what it may do to the home page widgets).
 
 ## Progress at a glance
 
@@ -14,15 +15,19 @@ for the ai implementation in the app all the rules for the ai are written in ai_
 | Voice / chat AI assistant (Groq) | Done, tested |
 | AI rules (`ai_perms.md`) wired into the assistant prompt | Done |
 | AI adds / removes / moves Home widgets on request | Done, tested |
-| SQLite database schema (`database/`) | Schema + `app.db` created, **not yet used by the app** |
+| AI changes the colour theme on request | Done, tested |
+| SQLite database + API (`database/`) | Theme + Home widgets saved and restored; widgets show DB accounts + transactions |
 | Accounts, Payments, Search, More screens | Placeholders, waiting on teammate mockups |
-| Persisting personalisation across reloads | Not started (in memory only) |
+| Persisting personalisation across reloads | Theme + widgets persist (via `npm run db`); question answers don't |
 
 ## App structure
 
 - Expo (SDK 58) / React Native 0.88 / React 19 app, runs on iOS, Android and web.
-  - `npm start` (or `npm run web` / `npm run android` / `npm run ios`)
-  - `npm test` runs `tests/voice.test.mjs` and `tests/personalise.test.mjs` (node:test, no device needed).
+  - `npm start` (or `npm run web` / `npm run android` / `npm run ios`), plus `npm run db` in a second terminal for the
+    database API (the app still runs without it, but nothing is saved)
+  - `npm test` runs `tests/voice.test.mjs` (Groq client, tool loop, rate-limit retry, `ai_perms.md` in the prompt),
+    `tests/personalise.test.mjs` (templates, `buildHome`, AI widget + theme edits) and `tests/database.test.mjs`
+    (API against an in-memory copy of `schema.sql`). node:test, no device needed.
 - See `AGENTS.md` for general Expo guidance. Note: the app does NOT use Expo Router — navigation is manual.
 - `index.js` registers `App.js` as the root component.
 - `App.js` keeps the active tab in `useState`, renders the matching screen, and overlays
@@ -39,8 +44,8 @@ for the ai implementation in the app all the rules for the ai are written in ai_
 
 - `src/voice/`: Groq speech-to-text (`whisper-large-v3-turbo`) + Groq chat (`qwen/qwen3.8-27b`, or
   `openai/gpt-oss-120b` when the AI has tools — qwen was unreliable at calling tools).
-- The Home search box sends typed questions, and its mic button records voice; both open
-  `src/voice/AssistantSheet.js`.
+- The search box on both the standard and personalised home sends typed questions, and its mic button records
+  voice; both open `src/voice/AssistantSheet.js`.
 - The system prompt in `src/voice/groq.js` imports `ai_perms.md` directly (`metro.config.js` + `md-transformer.js`
   let Metro import `.md` as a string; `tests/register-md.mjs` does the same for Node), so edit the rules in
   `ai_perms.md`, not in code.
@@ -51,17 +56,19 @@ for the ai implementation in the app all the rules for the ai are written in ai_
   run }`) and loops until it replies with text. `VoiceAssistant` takes `tools` plus `getContext()`, which is added
   to the system prompt fresh on every question.
 
-### AI widget editing
+### AI widget and theme editing
 
 The assistant can see which widgets are on Home and add, remove or move them when the user asks
-("put my bills at the top", "get rid of move money").
-- `src/personalise/widgetCatalog.js` lists every widget (`WIDGETS`: name, description, variants) and has pure
+("put my bills at the top", "get rid of move money"), and change the colour theme ("make it green").
+- `src/personalise/widgetCatalog.js` lists every widget (`WIDGETS`: database `id`, name, description, variants) and has pure
   `editLayout()` / `describeLayout()` helpers. **Add new widgets here too**, or the AI won't know about them.
-- `src/personalise/homeTools.js` builds the `add_widget` / `remove_widget` / `move_widget` tools and the live
-  layout context. The AI only sees widget names and order, never balances (rule added to `ai_perms.md`).
+- `src/personalise/homeTools.js` builds the `add_widget` / `remove_widget` / `move_widget` / `set_theme` tools and the
+  live context. On every question the context re-reads the available widgets and themes from the database
+  (`getCatalog()`), and the tools only accept those; if the API is down it falls back to `WIDGETS` / `PALETTES`.
+  The AI only sees widget names, order and theme names, never balances (rules in `ai_perms.md`).
 - Edits are saved with `setHomeSections()` in `store.js` as `{ answers, sections }`; `buildHome(answers, { sections })`
   then uses that list instead of the template's. Editing from the standard home switches to a personalised home
-  built from `DEFAULT_ANSWERS`. Finalising the questions again drops the AI edits.
+  built from `DEFAULT_ANSWERS`. Finalising the questions again drops the AI edits. `setTheme()` sets `answers.palette`.
 - `HomeScreen.js` passes the tools to `AssistantSheet`, and renders the sheets outside the home branches so the
   assistant isn't remounted when the home switches.
 
@@ -77,11 +84,19 @@ Code lives in `src/personalise/`:
 - `buildHome.js` scores templates against the answers, picks the best, then applies the user's tweaks (palette,
   density, pinned accounts, weekly tracker on/off, contacts vs transfer) and the frequency priority rule. Pure JS, tested.
 - `themes.js` palettes (`PALETTES`, e.g. `westpac`, `forest`, ...) + compact/spacious spacing.
-  `mockData.js` fake balances, bills, contacts, etc.
+  `mockData.js` fake balances, bills, contacts, etc. `bankData.js` (pure, tested) turns the database's accounts and
+  transactions into the same shapes (`fromDatabase()`); widgets read it with `useBankData()` from `store.js`, which
+  shows mock data until the database answers. From the database: accounts (kind guessed from the product name:
+  everyday / savings / credit / loan), total available, net worth, recent transactions, spent today / this week /
+  this month (own `Payment to/from Westpac ...` transfers don't count, "today" = latest transaction date), and the
+  week's top places in place of categories. Still mock (no tables yet): bills, goal targets, budgets, joint
+  accounts, PayID contacts, transfers.
 - `PersonalisedHome.js` renders the sections; widgets are in `widgets/` (`GoalWidgets.js`, `MoneyWidgets.js`,
   `MoveMoney.js`) and share `ui.js` (Card, Carousel, Bar, Gauge...).
-- `store.js` keeps the finalised answers (and any AI widget edits) in memory (lost on reload) so the home survives tab switches. The tab bar
-  also reads it to pick its colours.
+- `store.js` keeps the finalised answers (and any AI widget edits) in memory so the home survives tab switches. The
+  tab bar also reads it to pick its colours. Every change (questions finalised, AI edit, theme, reset) also saves the
+  theme and Home widgets to the database, and `loadFromDatabase()` (called once in `App.js`) restores them on launch.
+  Restored widgets use their default variant, and the question answers themselves aren't saved.
 - `screens/HomeScreen.js` shows the standard home with a "Make this home yours" banner until answers are finalised,
   then the personalised home ("Edit home" reopens the questions; "Use standard home" resets).
 
@@ -115,9 +130,19 @@ it in templates.
 - **Vertical / stacked**: widgets in a single up-down list, in priority order.
 - Provide several template variants of each, mixing horizontal rows inside a vertical page.
 
-## Database (started, not wired in)
+## Database
 
 - `database/schema.sql` defines SQLite tables `users`, `accounts`, `transactions` and `customisation`
-  (`primary_colour` / `secondary_colour` per user); `database/app.db` is the built database.
-- Nothing in the app reads it yet — all data comes from `src/personalise/mockData.js`. Per `ai_perms.md`, the AI must
-  never get direct SQL or write access.
+  (a `theme` per user, a `themes.name`); `database/app.db` is the built database.
+- `themes` (`name` PK, `label`) lists the colour themes, matching `PALETTES` in `themes.js`.
+- `widgets` (`widget_ID` PK, `name`) lists the 9 widgets in `WIDGETS` order from `widgetCatalog.js` (1 = Money goal …
+  9 = Total available); `homepage_widgets` (`user_ID`, `widget_ID`, `priority`, no PK) is which widgets each user
+  has on Home, 1 = top. Add new widgets to the seed `INSERT` in `schema.sql` too.
+- `session` holds who is signed in: always one row (`ID` locked to 1), `user_ID` defaults to 1. Switch user with
+  `UPDATE session SET user_ID = 2;`.
+- `database/server.mjs` (`npm run db`, port 3001, built-in `node:sqlite`) is the only way in: `GET /api/home`,
+  `GET /api/banking` (accounts + transactions, for the widgets only, never the AI), `PUT /api/theme`,
+  `PUT /api/homepage`, always for the `session` user, rate-limited. `src/db/client.js` calls it
+  (`EXPO_PUBLIC_DB_URL` overrides the address). Per `ai_perms.md`, the AI never gets direct SQL or write access.
+- Transaction dates in `app.db` are `dd/mm/yyyy` (not ISO as the schema comment says), so don't sort them as text;
+  `parseDate()` in `bankData.js` reads both. The standard home's account cards (`HomeScreen.js`) are still mock.

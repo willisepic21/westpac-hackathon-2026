@@ -5,12 +5,14 @@
 //   RecentSection  recent transactions
 //   BillsSection   upcoming bills                 hero | list
 //   NetWorthSection, TotalSection
+// Accounts, transactions, spending and net worth come from the database (useBankData); bills and budgets are
+// still mock data (see bankData.js).
 
 import React from 'react';
 import { View } from 'react-native';
 
 import { Section, Card, Carousel, Bar, Row, T, formatMoney, useHomeStyle } from '../ui';
-import { ACCOUNTS, BILLS, GOALS, NET_WORTH, TRANSACTIONS, WEEKLY } from '../mockData';
+import { useBankData } from '../store';
 
 const money = (n) => formatMoney(n, { cents: false });
 
@@ -26,11 +28,13 @@ function AccountCard({ account, wide }) {
       </View>
       {!wide ? <T v="big" style={{ marginTop: 8 }}>{formatMoney(account.balance)}</T> : null}
       <T v="small" muted style={{ marginTop: 4 }}>
-        {account.joint ? 'Joint · ' : ''}
-        {account.number}
-        {account.available != null && account.available !== account.balance
-          ? ` · ${money(account.available)} avail`
-          : ''}
+        {[
+          account.joint ? 'Joint' : null,
+          account.number,
+          account.available != null && account.available !== account.balance ? `${money(account.available)} avail` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ') || ' '}
       </T>
       {wide && account.note ? (
         <T v="small" color={theme.muted} style={{ marginTop: 10 }}>{account.note}</T>
@@ -41,6 +45,7 @@ function AccountCard({ account, wide }) {
 
 export function PinnedSection({ section, home }) {
   const { d } = useHomeStyle();
+  const { ACCOUNTS } = useBankData();
   const accounts = home.pinned.map((id) => ACCOUNTS[id]).filter(Boolean);
   const title = section.title ?? 'Pinned accounts';
 
@@ -86,7 +91,8 @@ export function PinnedSection({ section, home }) {
 
 export function TilesSection({ home }) {
   const { d } = useHomeStyle();
-  const first = ACCOUNTS[home.pinned[0]] ?? ACCOUNTS.everyday;
+  const { ACCOUNTS, GOALS } = useBankData();
+  const first = ACCOUNTS[home.pinned[0]] ?? ACCOUNTS.everyday ?? Object.values(ACCOUNTS)[0];
   const fact =
     home.goal === 'debt'
       ? { label: 'Next payment', value: money(GOALS.debt.nextPayment), note: `Due ${GOALS.debt.nextDate}` }
@@ -100,11 +106,13 @@ export function TilesSection({ home }) {
   return (
     <Section>
       <View style={{ flexDirection: 'row', gap: d.gap }}>
-        <Card style={{ flex: 1 }}>
-          <T v="small" muted>{first.name}</T>
-          <T v="big" style={{ marginTop: 6 }}>{formatMoney(first.balance)}</T>
-          <T v="small" muted style={{ marginTop: 4 }}>{first.number}</T>
-        </Card>
+        {first ? (
+          <Card style={{ flex: 1 }}>
+            <T v="small" muted>{first.name}</T>
+            <T v="big" style={{ marginTop: 6 }}>{formatMoney(first.balance)}</T>
+            <T v="small" muted style={{ marginTop: 4 }}>{first.number ?? 'Pinned account'}</T>
+          </Card>
+        ) : null}
         <Card style={{ flex: 1 }}>
           <T v="small" muted>{fact.label}</T>
           <T v="big" style={{ marginTop: 6 }}>{fact.value}</T>
@@ -118,7 +126,7 @@ export function TilesSection({ home }) {
 // ---------- Weekly spend gauge ----------
 
 function WeeklyCard() {
-  const { spent, budget, resetDay } = WEEKLY;
+  const { spent, budget, resetDay } = useBankData().WEEKLY;
   return (
     <Card tone="soft">
       <T bold>Weekly spending</T>
@@ -144,6 +152,7 @@ function BarRow({ label, spent, budget, note }) {
 }
 
 export function WeeklySection({ section }) {
+  const { GOALS, WEEKLY } = useBankData();
   if (section.variant === 'bars') {
     const { spentToday, dailyBudget } = GOALS.spending;
     return (
@@ -181,7 +190,7 @@ export function WeeklySection({ section }) {
 // ---------- Recent transactions ----------
 
 export function RecentSection({ section }) {
-  const items = TRANSACTIONS.slice(0, section.count ?? 3);
+  const items = useBankData().TRANSACTIONS.slice(0, section.count ?? 3);
   return (
     <Section title={section.title ?? 'Recent transactions'} action="View all">
       {items.map((t, i) => (
@@ -200,6 +209,7 @@ export function RecentSection({ section }) {
 // ---------- Bills ----------
 
 export function BillsSection({ section }) {
+  const { BILLS } = useBankData();
   const total = BILLS.items.reduce((sum, b) => sum + b.amount, 0);
 
   if (section.variant === 'hero') {
@@ -234,7 +244,7 @@ export function BillsSection({ section }) {
 
 export function NetWorthSection() {
   const { theme } = useHomeStyle();
-  const { assets, debt, changeThisMonth } = NET_WORTH;
+  const { assets, debt, changeThisMonth } = useBankData().NET_WORTH;
   return (
     <Section>
       <T v="small" muted>Your net worth</T>
@@ -258,9 +268,7 @@ export function NetWorthSection() {
 
 export function TotalSection() {
   const { theme } = useHomeStyle();
-  const total = Object.values(ACCOUNTS)
-    .filter((a) => a.balance > 0)
-    .reduce((sum, a) => sum + a.balance, 0);
+  const total = useBankData().TOTAL_AVAILABLE;
   return (
     <Section>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>

@@ -3,49 +3,59 @@
 // Pure JS so it can be tested in Node (see tests/personalise.test.mjs).
 //
 // Keep in sync with SECTIONS in PersonalisedHome.js: every `type` here must render there.
+// `id` is the widget's widget_ID in the database `widgets` table (database/schema.sql).
 
 export const WIDGETS = {
   goal: {
+    id: 1,
     name: 'Money goal',
     description: "The user's goal widget: house deposit save tracker, debt paid-off bar or daily spending gauge.",
     variants: ['hero', 'carousel', 'mini'],
   },
   weekly: {
+    id: 2,
     name: 'Weekly spend gauge',
     description: 'How much has been spent this week against the weekly budget.',
     variants: ['card', 'carousel', 'bars'],
   },
   pinned: {
+    id: 3,
     name: 'Pinned accounts',
     description: "The user's pinned accounts, including joint accounts.",
     variants: ['carousel', 'grid', 'list'],
   },
   tiles: {
+    id: 4,
     name: 'Quick tiles',
     description: 'Two small tiles: the top pinned account and a goal fact.',
     variants: [],
   },
   recent: {
+    id: 5,
     name: 'Recent transactions',
     description: 'The latest few transactions.',
     variants: [],
   },
   netWorth: {
+    id: 6,
     name: 'Net worth',
     description: 'Net worth with assets and debt.',
     variants: [],
   },
   bills: {
+    id: 7,
     name: 'Upcoming bills',
     description: 'Bills coming up soon.',
     variants: ['hero', 'list'],
   },
   move: {
+    id: 8,
     name: 'Move money',
     description: 'Quick PayID contacts and/or a 1-tap transfer between their own accounts.',
     variants: ['button', 'slider'],
   },
   total: {
+    id: 9,
     name: 'Total available',
     description: 'Total money available across all accounts.',
     variants: [],
@@ -53,6 +63,18 @@ export const WIDGETS = {
 };
 
 export const WIDGET_TYPES = Object.keys(WIDGETS);
+
+/** Widget type for a database widget_ID, e.g. 1 -> 'goal' (undefined if the app can't render it). */
+export const widgetType = (id) => WIDGET_TYPES.find((type) => WIDGETS[type].id === id);
+
+/** A new section for a widget, with its first variant unless a valid one is given. */
+export function newSection(type, variant) {
+  const w = WIDGETS[type];
+  const section = { type };
+  if (w.variants.length) section.variant = w.variants.includes(variant) ? variant : w.variants[0];
+  if (type === 'recent') section.count = 3;
+  return section;
+}
 
 const label = (s) => {
   const w = WIDGETS[s.type];
@@ -66,12 +88,19 @@ export function describeLayout(sections) {
   return sections.map((s, i) => `${i + 1}. ${s.type}: ${label(s)}`).join('\n');
 }
 
-/** The full catalogue as text, for the AI prompt. */
-export function describeCatalog() {
-  return WIDGET_TYPES.map((type) => {
+/**
+ * The catalogue as text, for the AI prompt.
+ * `available` (optional) is the database's widgets table, [{ id, name }]; only those widgets are listed,
+ * using the database name. Without it, every widget in WIDGETS is listed.
+ */
+export function describeCatalog(available) {
+  const rows = available
+    ? available.map(({ id, name }) => ({ type: widgetType(id), name })).filter((r) => r.type)
+    : WIDGET_TYPES.map((type) => ({ type, name: WIDGETS[type].name }));
+  return rows.map(({ type, name }) => {
     const w = WIDGETS[type];
     const variants = w.variants.length ? ` Variants: ${w.variants.join(', ')}.` : '';
-    return `- ${type}: ${w.name}. ${w.description}${variants}`;
+    return `- ${type}: ${name}. ${w.description}${variants}`;
   }).join('\n');
 }
 
@@ -100,9 +129,7 @@ export function editLayout(sections, { action, type, variant, position }) {
 
   if (action === 'add') {
     if (index >= 0) throw new Error(`${w.name} is already on the home (position ${index + 1}).`);
-    const section = { type };
-    if (w.variants.length) section.variant = w.variants.includes(variant) ? variant : w.variants[0];
-    if (type === 'recent') section.count = 3;
+    const section = newSection(type, variant);
     const out = [...sections];
     out.splice(toIndex(position, out.length), 0, section);
     return { sections: out, message: `Added ${label(section)} at position ${out.indexOf(section) + 1}.` };

@@ -16,3 +16,5 @@
 - limit AI usage to only being for bank related queries, deny queries that are not related to the app
 - AI can see which widgets are on the home page and add, remove or reorder them when the user asks
 	- it only sees widget names and their order, not the balances or transactions inside them
+- AI can change the app's colour theme when the user asks, but only to a theme listed in the database
+	- the widgets and themes it can choose from are read from the database, through the app's API (never SQL)

@@ -13,6 +13,8 @@ import {
   setPersonalisation,
   getPersonalisation,
   setHomeSections,
+  setTheme,
+  getCatalog,
 } from '../src/personalise/store';
 import { createHomeTools } from '../src/personalise/homeTools';
 import { useTabBarSpace } from '../components/GlassTabBar';
@@ -141,9 +143,9 @@ export default function HomeScreen() {
     () => (personal ? buildHome(personal.answers, { sections: personal.sections }) : null),
     [personal],
   );
-  // Lets the assistant see the widgets on Home and add / remove / move them.
+  // Lets the assistant see the widgets on Home, add / remove / move them, and change the theme.
   const homeTools = useMemo(
-    () => createHomeTools({ getState: getPersonalisation, setSections: setHomeSections }),
+    () => createHomeTools({ getState: getPersonalisation, setSections: setHomeSections, setTheme, getCatalog }),
     [],
   );
 

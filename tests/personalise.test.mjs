@@ -128,19 +128,131 @@ test('home tools let the AI see the layout and edit it, starting from the standa
   const { tools, context } = createHomeTools({
     getState: () => state,
     setSections: (sections) => { state = { answers: state?.answers ?? DEFAULT_ANSWERS, sections }; },
+    setTheme: () => true,
+    getCatalog: async () => ({
+      widgets: [{ id: 5, name: 'Recent transactions' }, { id: 6, name: 'Net worth (from db)' }],
+      themes: [{ name: 'forest', label: 'Forest + mint' }],
+    }),
   });
   const tool = (name) => tools.find((t) => t.name === name);
 
-  assert.match(context(), /standard home/);
-  assert.match(context(), /netWorth: Net worth/, 'catalogue is in the context');
-  assert.doesNotMatch(context(), /\$/, 'no balances are shown to the AI');
+  const ctx = await context();
+  assert.match(ctx, /standard home/);
+  assert.match(ctx, /netWorth: Net worth \(from db\)/, 'catalogue comes from the database');
+  assert.doesNotMatch(ctx, /goal: Money goal\./, 'widgets missing from the database are not offered');
+  assert.doesNotMatch(ctx, /\$/, 'no balances are shown to the AI');
 
-  const result = tool('add_widget').run({ type: 'netWorth', position: 1 });
+  const result = await tool('add_widget').run({ type: 'netWorth', position: 1 });
   assert.match(result, /Added Net worth at position 1/);
   assert.equal(state.sections[0].type, 'netWorth');
-  assert.match(context(), /right now, top to bottom:\n1\. netWorth/);
+  assert.match(await context(), /right now, top to bottom:\n1\. netWorth/);
+  await assert.rejects(tool('add_widget').run({ type: 'total' }), /not one of the available widgets/);
 
-  tool('remove_widget').run({ type: 'netWorth' });
+  await tool('remove_widget').run({ type: 'netWorth' });
   assert.ok(!state.sections.some((s) => s.type === 'netWorth'));
-  assert.throws(() => tool('remove_widget').run({ type: 'netWorth' }), /not on the home/);
+  await assert.rejects(tool('remove_widget').run({ type: 'netWorth' }), /not on the home/);
+});
+
+test('set_theme only allows database themes and says when it could not be saved', async () => {
+  const { createHomeTools } = await import('../src/personalise/homeTools.js');
+  let theme = null;
+  let online = true;
+  const { tools, context } = createHomeTools({
+    getState: () => (theme ? { answers: { ...DEFAULT_ANSWERS, palette: theme } } : null),
+    setSections: () => {},
+    setTheme: async (name) => { theme = name; return online; },
+    getCatalog: async () => ({ widgets: [], themes: [{ name: 'forest', label: 'Forest + mint' }, { name: 'ocean', label: 'Ocean + sky' }] }),
+  });
+  const setTheme = tools.find((t) => t.name === 'set_theme');
+
+  assert.match(await context(), /Themes available:\n- forest: Forest \+ mint\n- ocean: Ocean \+ sky/);
+  assert.equal(await setTheme.run({ theme: 'forest' }), 'Theme changed to Forest + mint.');
+  assert.match(await context(), /Current theme: forest/);
+  await assert.rejects(setTheme.run({ theme: 'midnight' }), /Unknown theme "midnight"/);
+
+  online = false;
+  assert.match(await setTheme.run({ theme: 'ocean' }), /could not be reached/);
+});
+
+test('without the database the AI falls back to the built-in widgets and themes', async () => {
+  const { createHomeTools } = await import('../src/personalise/homeTools.js');
+  const { context } = createHomeTools({
+    getState: () => null,
+    setSections: () => {},
+    setTheme: () => {},
+    getCatalog: async () => { throw new Error('offline'); },
+  });
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    const ctx = await context();
+    assert.match(ctx, /goal: Money goal\./);
+    assert.match(ctx, /- midnight: Midnight \+ coral/);
+  } finally {
+    console.warn = warn;
+  }
+});
+
+test('every catalogue widget has a unique database ID and buildHome reports its palette', async () => {
+  const { WIDGETS, WIDGET_TYPES, widgetType } = await import('../src/personalise/widgetCatalog.js');
+  WIDGET_TYPES.forEach((type) => assert.equal(widgetType(WIDGETS[type].id), type));
+  assert.equal(buildHome(answers({ palette: 'forest' })).paletteKey, 'forest');
+  assert.equal(buildHome(answers({ palette: 'nope' })).paletteKey, buildHome(answers()).template.palette);
+});
+
+test('database accounts and transactions become widget data; missing tables stay mock', async () => {
+  const { fromDatabase, accountKind, parseDate } = await import('../src/personalise/bankData.js');
+  const MOCK = await import('../src/personalise/mockData.js');
+
+  assert.equal(accountKind('Westpac Choice'), 'everyday');
+  assert.equal(accountKind('Westpac eSaver'), 'savings');
+  assert.equal(accountKind('Westpac Altitude Rewards'), 'credit');
+  assert.equal(accountKind('Westpac Home Loan'), 'loan');
+  assert.equal(parseDate('02/11/2026').getTime(), new Date(2026, 10, 2).getTime());
+
+  const tx = (id, account, amount, date, name, negative) => ({
+    transaction_ID: id, account_ID: account, amount, date, name, negative,
+  });
+  const data = fromDatabase({
+    accounts: [
+      { account_ID: 1, account_type: 'Westpac Choice', balance: 1000 },
+      { account_ID: 2, account_type: 'Westpac Life', balance: 500 },
+      { account_ID: 3, account_type: 'Westpac Altitude Rewards', balance: -200 },
+      { account_ID: 4, account_type: 'Westpac Home Loan', balance: 50000 },
+    ],
+    transactions: [
+      // Wed 11 Nov 2026 is "today" (latest); the week started Mon 9 Nov.
+      tx(1, 1, 20, '11/11/2026', 'Woolworths', 1),
+      tx(2, 3, 30, '11/11/2026', 'Uber Trip', 1),
+      tx(3, 1, 100, '10/11/2026', 'Payment to Westpac Life', 1),
+      tx(4, 2, 100, '10/11/2026', 'Payment from Westpac Choice', 0),
+      tx(5, 1, 15, '09/11/2026', 'Woolworths', 1),
+      tx(6, 1, 50, '08/11/2026', 'Zambrero', 1),
+      tx(7, 1, 800, '02/11/2026', 'Salary', 0),
+      tx(8, 1, 999, '30/10/2026', 'Last month', 1),
+    ],
+  });
+
+  assert.deepEqual(Object.keys(data.ACCOUNTS), ['everyday', 'savings', 'credit', 'loan']);
+  assert.equal(data.ACCOUNTS.everyday.name, 'Westpac Choice');
+  assert.equal(data.TOTAL_AVAILABLE, 1500);
+  assert.deepEqual(data.NET_WORTH, { assets: 1500, debt: 50200, changeThisMonth: 685 });
+
+  assert.deepEqual(data.TRANSACTIONS.slice(0, 2).map((t) => [t.name, t.when, t.amount]), [
+    ['Uber Trip', 'Today', -30],
+    ['Woolworths', 'Today', -20],
+  ]);
+  assert.equal(data.TRANSACTIONS.find((t) => t.id === 't3').when, 'Yesterday');
+
+  // Own transfers aren't spending; the week runs Monday to today.
+  assert.equal(data.GOALS.spending.spentToday, 50);
+  assert.equal(data.WEEKLY.spent, 65);
+  assert.equal(data.GOALS.spending.spentMonth, 115);
+  assert.deepEqual(data.WEEKLY.categories.map((c) => [c.name, c.amount]), [['Woolworths', 35], ['Uber Trip', 30]]);
+
+  // No tables for these yet.
+  assert.equal(data.BILLS, MOCK.BILLS);
+  assert.equal(data.CONTACTS, MOCK.CONTACTS);
+  assert.equal(data.WEEKLY.budget, MOCK.WEEKLY.budget);
+  assert.equal(data.GOALS.house, MOCK.GOALS.house);
 });

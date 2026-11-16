@@ -35,7 +35,7 @@ export class VoiceAssistant {
     systemPrompt = DEFAULT_SYSTEM_PROMPT,
     context, // optional read-only data for the AI, e.g. an account summary
     tools = [], // optional tools the AI can call, see chatWithTools in ./groq.js
-    getContext, // optional () => string, added to the system prompt fresh on every question
+    getContext, // optional () => string (or Promise<string>), added to the system prompt fresh on every question
   } = {}) {
     this.apiKey = apiKey;
     this.chatModel = chatModel ?? (tools.length ? DEFAULT_TOOL_MODEL : DEFAULT_CHAT_MODEL);
@@ -63,7 +63,7 @@ export class VoiceAssistant {
   async ask(text) {
     const [system, ...rest] = this.messages;
     const live = this.getContext
-      ? { role: 'system', content: `${system.content}\n\n${this.getContext()}` }
+      ? { role: 'system', content: `${system.content}\n\n${await this.getContext()}` }
       : system;
     const { reply, messages } = await chatWithTools([live, ...rest, { role: 'user', content: text }], {
       tools: this.tools,

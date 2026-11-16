@@ -61,8 +61,9 @@ export function buildHome(rawAnswers, { templateId, sections: customSections } =
   const template =
     (templateId && TEMPLATES.find((t) => t.id === templateId)) || rankTemplates(answers)[0];
 
-  const paletteKey = answers.palette === 'template' ? template.palette : answers.palette;
-  const theme = PALETTES[paletteKey] ?? PALETTES[template.palette];
+  const chosen = answers.palette === 'template' ? template.palette : answers.palette;
+  const paletteKey = PALETTES[chosen] ? chosen : template.palette;
+  const theme = PALETTES[paletteKey];
   const density = DENSITY[answers.density] ? answers.density : template.density;
 
   let showContacts = answers.transfers === 'others' || answers.transfers === 'both';
@@ -87,6 +88,7 @@ export function buildHome(rawAnswers, { templateId, sections: customSections } =
     answers,
     template,
     theme,
+    paletteKey, // e.g. 'forest', saved as the theme in the database
     density,
     d: DENSITY[density],
     goal: answers.goal,

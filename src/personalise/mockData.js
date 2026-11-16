@@ -1,4 +1,5 @@
-// Mock banking data for the personalised home widgets. Swap for real data / API later.
+// Mock banking data for the personalised home widgets. Accounts, transactions and spending are replaced by the
+// database once it loads (see bankData.js); the rest has no database tables yet.
 
 export const ACCOUNTS = {
   everyday: { id: 'everyday', name: 'Everyday', number: '•• 4821', balance: 2840.5, available: 2840.5 },

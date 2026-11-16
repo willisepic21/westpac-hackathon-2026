@@ -3,18 +3,20 @@
 //   debt     → debt fulfilled bar
 //   spending → daily spending gauge
 // Each comes in three variants: hero (one big card), carousel (swipe row), mini (one line).
+// Spending figures come from the database (useBankData); goal targets and budgets are still mock data.
 
 import React from 'react';
 import { View } from 'react-native';
 
 import { Section, Card, Carousel, Bar, Gauge, T, formatMoney, useHomeStyle } from '../ui';
-import { GOALS, WEEKLY } from '../mockData';
+import { useBankData } from '../store';
 
 const money = (n) => formatMoney(n, { cents: false });
 
 // ---------- Main cards (used by hero + carousel) ----------
 
 function HouseCard() {
+  const { GOALS } = useBankData();
   const { saved, target, account } = GOALS.house;
   const pct = saved / target;
   return (
@@ -33,6 +35,7 @@ function HouseCard() {
 }
 
 function DebtCard() {
+  const { GOALS } = useBankData();
   const { paid, total } = GOALS.debt;
   const pct = paid / total;
   return (
@@ -50,6 +53,7 @@ function DebtCard() {
 
 // Bar version (for carousels, matches the Figma "Today" card)
 function SpendingTodayCard() {
+  const { GOALS } = useBankData();
   const { spentToday, dailyBudget } = GOALS.spending;
   return (
     <Card tone="hero">
@@ -65,7 +69,7 @@ function SpendingTodayCard() {
 // Gauge version (hero variant)
 function SpendingGaugeCard() {
   const { d } = useHomeStyle();
-  const { spentToday, dailyBudget } = GOALS.spending;
+  const { spentToday, dailyBudget } = useBankData().GOALS.spending;
   return (
     <Card tone="hero" style={{ alignItems: 'center' }}>
       <T on="hero" bold style={{ alignSelf: 'flex-start' }}>Daily spending</T>
@@ -93,7 +97,7 @@ function FactCard({ label, value, note, bar }) {
   );
 }
 
-function supportingCards(goal, weeklyTracker) {
+function supportingCards(goal, weeklyTracker, { GOALS, WEEKLY }) {
   if (goal === 'house') {
     const { saved, target, weeklyDeposit } = GOALS.house;
     const weeks = Math.ceil((target - saved) / weeklyDeposit);
@@ -137,6 +141,8 @@ const TITLE = { house: 'Your home goal', debt: 'Debt payoff', spending: 'Spendin
 
 export default function GoalSection({ section, home }) {
   const { goal, weeklyTracker } = home;
+  const data = useBankData();
+  const { GOALS } = data;
   const Main = MAIN[goal] ?? SpendingTodayCard;
 
   if (section.variant === 'carousel') {
@@ -144,7 +150,7 @@ export default function GoalSection({ section, home }) {
       <Section title={section.title ?? TITLE[goal]} action="Swipe →" bleed>
         <Carousel>
           <Main />
-          {supportingCards(goal, weeklyTracker)}
+          {supportingCards(goal, weeklyTracker, data)}
         </Carousel>
       </Section>
     );
