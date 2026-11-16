@@ -134,7 +134,6 @@ export default function HomeScreen() {
         onClose={() => setAssistant(null)}
         initialQuestion={assistant?.question}
         autoListen={assistant?.listen}
-        context={ACCOUNT_SUMMARY}
       />
 
       <View style={styles.panel}>
