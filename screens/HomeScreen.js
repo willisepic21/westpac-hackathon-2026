@@ -1,10 +1,14 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import WestpacLogo from '../components/WestpacLogo';
 import AssistantSheet from '../src/voice/AssistantSheet';
+import PersonalisedHome from '../src/personalise/PersonalisedHome';
+import QuestionSheet from '../src/personalise/QuestionSheet';
+import { buildHome } from '../src/personalise/buildHome';
+import { usePersonalisation, setPersonalisation } from '../src/personalise/store';
 
 // Brand colours used across the mockup
 const RED = '#D5002B';
@@ -123,20 +127,66 @@ export default function HomeScreen() {
   // AI assistant pop-up: `question` is set when opened from typed text, `listen` when opened by the mic.
   const [assistant, setAssistant] = useState(null); // null | { question } | { listen: true }
 
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 24 }}>
-      <Header
-        onAsk={(question) => setAssistant({ question })}
-        onVoice={() => setAssistant({ listen: true })}
-      />
+  // Personalised home: finalised answers from the question pop-up (null = standard home)
+  const personal = usePersonalisation();
+  const [editing, setEditing] = useState(false);
+  const home = useMemo(() => (personal ? buildHome(personal.answers) : null), [personal]);
+
+  const onAsk = (question) => setAssistant({ question });
+  const onVoice = () => setAssistant({ listen: true });
+
+  const sheets = (
+    <>
       <AssistantSheet
         visible={assistant != null}
         onClose={() => setAssistant(null)}
         initialQuestion={assistant?.question}
         autoListen={assistant?.listen}
       />
+      <QuestionSheet
+        visible={editing}
+        initialAnswers={personal?.answers}
+        onClose={() => setEditing(false)}
+        onFinalise={(answers) => {
+          setPersonalisation(answers);
+          setEditing(false);
+        }}
+        onReset={
+          personal
+            ? () => {
+                setPersonalisation(null);
+                setEditing(false);
+              }
+            : undefined
+        }
+      />
+    </>
+  );
+
+  if (home) {
+    return (
+      <View style={{ flex: 1 }}>
+        <PersonalisedHome home={home} onEdit={() => setEditing(true)} onAsk={onAsk} onVoice={onVoice} />
+        {sheets}
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 24 }}>
+      <Header onAsk={onAsk} onVoice={onVoice} />
+      {sheets}
 
       <View style={styles.panel}>
+        <TouchableOpacity style={styles.personaliseCard} onPress={() => setEditing(true)} activeOpacity={0.85}>
+          <Ionicons name="sparkles" size={22} color="#fff" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.personaliseTitle}>Make this home yours</Text>
+            <Text style={styles.personaliseText}>Answer 7 quick questions and we'll build your home around your goals.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#fff" />
+        </TouchableOpacity>
+
         <View style={styles.panelHeader}>
           <Text style={styles.panelTitle}>Accounts</Text>
           <TouchableOpacity>
@@ -162,6 +212,19 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  // "Make this home yours" banner that opens the question pop-up
+  personaliseCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: NAVY,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 18,
+  },
+  personaliseTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  personaliseText: { color: '#D9D6E6', fontSize: 13, marginTop: 2 },
+
   container: { flex: 1, backgroundColor: '#F3F4F6' },
 
   // Header
