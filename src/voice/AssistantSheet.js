@@ -19,6 +19,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import ProposalCard from '../actions/ProposalCard';
+import { declineProposal } from '../actions/store';
 import { VoiceAssistant } from './index';
 import { useVoiceRecorder } from './useVoiceRecorder';
 
@@ -33,6 +35,7 @@ export default function AssistantSheet({
   context,
   tools,
   getContext,
+  hint, // optional text shown before the first message
 }) {
   const insets = useSafeAreaInsets();
   const assistant = useRef(null);
@@ -107,6 +110,7 @@ export default function AssistantSheet({
 
   async function close() {
     if (recorder.isRecording) await recorder.stop().catch(() => {});
+    declineProposal(); // closing with an action waiting for approval counts as "no"
     // Start fresh next time: clear the AI's memory of the chat and the on-screen log.
     session.current += 1;
     assistant.current.reset();
@@ -138,7 +142,10 @@ export default function AssistantSheet({
             onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}
           >
             {log.length === 0 && !busy && !recorder.isRecording && (
-              <Text style={styles.hint}>Tap the mic and ask about your accounts, bills or spending, or ask me to add or remove widgets on your home.</Text>
+              <Text style={styles.hint}>
+                {hint ??
+                  'Tap the mic and ask about your accounts, bills or spending, ask me to add or remove widgets on your home, or to set up an action like moving money to savings.'}
+              </Text>
             )}
             {log.map((m, i) => (
               <Text key={i} style={[styles.bubble, m.role === 'user' ? styles.user : styles.ai]}>
@@ -146,6 +153,8 @@ export default function AssistantSheet({
               </Text>
             ))}
             {recorder.isRecording && <Text style={styles.status}>Listening… tap stop when you're done</Text>}
+            {/* AI-proposed action waiting for the user's approval */}
+            <ProposalCard />
             {busy && <Text style={styles.status}>{busy}</Text>}
             {error && <Text style={styles.error}>{error}</Text>}
           </ScrollView>

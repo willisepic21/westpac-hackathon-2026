@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -11,6 +12,10 @@ import MoreScreen from './screens/MoreScreen';
 import SignInScreen from './screens/SignInScreen';
 import GlassTabBar from './components/GlassTabBar';
 import { useUser } from './src/session';
+import { loadFromDatabase } from './src/personalise/store';
+import ActionAlert from './src/actions/ActionAlert';
+import { startActionPolling } from './src/actions/store';
+import { navigate, useRoute } from './src/navigation';
 
 const TABS = [
   { name: 'Home', icon: 'home' },
@@ -51,6 +56,17 @@ function Tabs() {
   const [activeTab, setActiveTab] = useState('Home');
   const Screen = SCREENS[activeTab] ?? HomeScreen;
 
+  // Tab (and sub-screen) live in src/navigation.js so other screens can navigate, e.g. Home -> More > Actions.
+  const { tab: activeTab } = useRoute();
+  const Screen = SCREENS[activeTab] ?? HomeScreen;
+
+  // Restore the saved theme and home widgets (needs `npm run db`; without it the app starts fresh).
+  useEffect(() => {
+    loadFromDatabase();
+    // Loads Actions and re-checks them every minute for the "about to run" alert.
+    startActionPolling();
+  }, []);
+
   return (
     <>
       <StatusBar style={activeTab === 'Home' ? 'light' : 'dark'} />
@@ -60,7 +76,10 @@ function Tabs() {
         </View>
 
         {/* Floats over the screens; screens pad their bottom with useTabBarSpace() */}
-        <GlassTabBar tabs={TABS} activeTab={activeTab} onSelect={setActiveTab} />
+        <GlassTabBar tabs={TABS} activeTab={activeTab} onSelect={(tab) => navigate(tab)} />
+
+        {/* "Action runs tomorrow at 9am" notification with skip / delete / edit */}
+        <ActionAlert />
       </View>
     </>
   );

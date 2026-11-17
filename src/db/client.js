@@ -6,6 +6,7 @@
 //   await saveTheme('forest');
 //   await saveHomepage([1, 5, 7]);   // widget IDs, top first
 //   const { userId, name } = await signIn('will@example.com');
+//   const { accounts, actions } = await getActions();   // + createAction, updateAction, deleteAction, skipAction ...
 
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
@@ -39,3 +40,12 @@ export const getBanking = () => call('GET', '/api/banking');
 export const saveTheme = (theme) => call('PUT', '/api/theme', { theme });
 export const saveHomepage = (widgetIds) => call('PUT', '/api/homepage', { widgets: widgetIds });
 export const signIn = (email) => call('PUT', '/api/session', { email });
+
+// Actions (money automations). Account names only come back here, never balances.
+export const getActions = () => call('GET', '/api/actions'); // { accounts: [{ id, name }], actions: [...] }
+export const createAction = (action) => call('POST', '/api/actions', action);
+export const updateAction = (id, changes) => call('PUT', `/api/actions/${id}`, changes);
+export const deleteAction = (id) => call('DELETE', `/api/actions/${id}`);
+export const skipAction = (id) => call('POST', `/api/actions/${id}/skip`);
+export const dismissActionAlert = (id) => call('POST', `/api/actions/${id}/dismiss`);
+export const runActionNow = (id) => call('POST', `/api/actions/${id}/run`);

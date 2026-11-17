@@ -18,7 +18,9 @@ for the ai implementation in the app all the rules for the ai are written in ai_
 | AI adds / removes / moves Home widgets on request | Done, tested |
 | AI changes the colour theme on request | Done, tested |
 | SQLite database + API (`database/`) | Theme + Home widgets saved and restored; widgets show DB accounts + transactions |
-| Accounts, Payments, Search, More screens | Placeholders, waiting on teammate mockups |
+| Actions: AI-set-up money automations, alerts, More > Actions page, Home card | Done, tested |
+| Accounts, Payments, Search screens | Placeholders, waiting on teammate mockups |
+| More screen | Menu with Actions; other sections waiting on teammate mockups |
 | Persisting personalisation across reloads | Theme + widgets persist (via `npm run db`); question answers don't |
 
 ## App structure
@@ -26,12 +28,13 @@ for the ai implementation in the app all the rules for the ai are written in ai_
 - Expo (SDK 58) / React Native 0.88 / React 19 app, runs on iOS, Android and web.
   - `npm start` (or `npm run web` / `npm run android` / `npm run ios`), plus `npm run db` in a second terminal for the
     database API (the app still runs without it, but nothing is saved)
-  - `npm test` runs `tests/voice.test.mjs` (Groq client, tool loop, rate-limit retry, `ai_perms.md` in the prompt),
+  - `npm test` runs `tests/actions.test.mjs` (action rules, API + scheduler, AI tools), `tests/voice.test.mjs` (Groq client, tool loop, rate-limit retry, `ai_perms.md` in the prompt),
     `tests/personalise.test.mjs` (templates, `buildHome`, AI widget + theme edits) and `tests/database.test.mjs`
     (API against an in-memory copy of `schema.sql`). node:test, no device needed.
 - See `AGENTS.md` for general Expo guidance. Note: the app does NOT use Expo Router — navigation is manual.
 - `index.js` registers `App.js` as the root component.
-- `App.js` keeps the active tab in `useState`, renders the matching screen, and overlays
+- `App.js` reads the active tab from `src/navigation.js` (`navigate(tab, screen?)` / `useRoute()`, so any screen can
+  jump elsewhere, e.g. `navigate('More', 'Actions')`), renders the matching screen, shows `ActionAlert`, and overlays
   `components/GlassTabBar.js`: a floating, translucent (expo-blur) tab bar absolutely positioned over the screens,
   coloured from the personalised home palette (Westpac palette by default).
   Tabs: Home, Accounts, Payments (raised centre button), Search, More.
@@ -78,6 +81,25 @@ The assistant can see which widgets are on Home and add, remove or move them whe
   that starts from the standard home's widgets (`STANDARD_ANSWERS` + `standardSections()`). Finalising the questions again drops the AI edits. `setTheme()` sets `answers.palette`.
 - `HomeScreen.js` passes the tools to `AssistantSheet`, and renders the sheets outside the home branches so the
   assistant isn't remounted when the home switches.
+
+## Actions (built)
+
+Money automations between the user's own accounts, e.g. "if Choice has more than $500, move the extra to savings
+every week". Code in `src/actions/`:
+- `rules.js` (pure, tested, shared with the server): the 3 kinds (`sweep` = move anything over a threshold,
+  `top_up` = keep an account above a minimum, `transfer` = fixed amount), `normaliseAction()` (validates; accepts
+  account names or "savings" / "everyday"), `describeAction()`, `planRun()` (never overdraws), dates. Actions run at
+  9am on `nextRun` (`RUN_HOUR`); daily / weekly / monthly.
+- `store.js` keeps the actions from the API (`useActions()`), refreshed every minute by `startActionPolling()` in
+  `App.js`, plus the AI's pending proposal (`proposeAction()` / `usePendingProposal()`).
+- AI: `actionTools.js` (pure, tested) gives the assistant `create_action` / `edit_action` / `delete_action`; wired up
+  in `assistantTools.js` and added to the Home assistant in `HomeScreen.js`. The AI only sees account names and the
+  rules, never balances. New or changed actions appear as an approval card (`ProposalCard.js`, inside
+  `AssistantSheet`) and the tool waits for Approve / Decline; closing the assistant declines.
+- `ActionsScreen.js` = More > Actions (list, Ask the AI, New action, Edit, Skip, Run now, Delete). `ActionForm.js` is
+  the create / edit pop-up. `ActionsCard.js` is the card on both homes (opens More > Actions).
+- `ActionAlert.js` is the in-app notification on every screen (hidden on the Actions page) when an action runs within
+  24 hours: "Skip this week", "Delete automation", "Edit"; the ✕ lets it run. Not a push / OS notification yet.
 
 ## Personalised widget home page (built)
 
@@ -148,11 +170,18 @@ it in templates.
 - `widgets` (`widget_ID` PK, `name`) lists the 9 widgets in `WIDGETS` order from `widgetCatalog.js` (1 = Money goal …
   9 = Total available); `homepage_widgets` (`user_ID`, `widget_ID`, `priority`, no PK) is which widgets each user
   has on Home, 1 = top. Add new widgets to the seed `INSERT` in `schema.sql` too.
+- `actions` (one row per automation: `kind`, `from_account_ID`, `to_account_ID`, `threshold` / `amount`, `frequency`,
+  `next_run` ISO date, `created_by` user / ai, `alert_dismissed_for`) and `action_runs` (history: moved / nothing /
+  skipped / failed). `server.mjs` runs due actions on start and every minute: it moves the balances and adds a pair of
+  `Payment to/from Westpac ...` transactions (so they don't count as spending). `npm run db` also applies
+  `schema.sql` to `app.db` on start, so new tables appear automatically.
 - `session` holds who is signed in: always one row (`ID` locked to 1), `user_ID` defaults to 1. Switch user with
   `UPDATE session SET user_ID = 2;`.
 - `database/server.mjs` (`npm run db`, port 3001, built-in `node:sqlite`) is the only way in: `GET /api/home`,
   `GET /api/banking` (accounts + transactions, for the widgets only, never the AI), `PUT /api/theme`,
   `PUT /api/homepage`, `PUT /api/session` (`{ email }`, signs that user in), always for the `session` user, rate-limited. `src/db/client.js` calls it
+  `PUT /api/homepage`, and `/api/actions` (`GET`, `POST`, `PUT|DELETE /:id`, `POST /:id/skip|dismiss|run`), always
+  for the `session` user, rate-limited. `src/db/client.js` calls it
   (`EXPO_PUBLIC_DB_URL` overrides the address). Per `ai_perms.md`, the AI never gets direct SQL or write access.
 - Transaction dates in `app.db` are `dd/mm/yyyy` (not ISO as the schema comment says), so don't sort them as text;
   `parseDate()` in `bankData.js` reads both.
