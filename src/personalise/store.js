@@ -115,8 +115,10 @@ const savedSection = ({ type, variant, count }) => {
 
 async function loadHome() {
   try {
-    const { theme, homepage, homepageSettings } = await db.getHome();
+    const { theme, homepage, homepageSettings, wallpaper: savedWallpaper } = await db.getHome();
     savedTheme = theme;
+    wallpaper = savedWallpaper ?? 0;
+    listeners.forEach((l) => l());
     // homepageSettings has each widget's saved style; older servers only send the IDs in `homepage`.
     const saved = (homepageSettings ?? homepage.map((id) => ({ id })))
       .map((w) => ({ ...w, type: widgetType(w.id) }))
@@ -132,8 +134,22 @@ async function loadHome() {
 // Signing out (or in as someone else): forget the last user's home and banking data, without saving.
 export function clearLocal() {
   savedTheme = null;
+  wallpaper = 0;
   bank = MOCK_DATA;
   emit(null);
+}
+
+// ---- Home wallpaper (More > Wallpaper). 0 = none, n = WALLPAPERS entry with id n (src/personalise/wallpapers.js) ----
+
+let wallpaper = 0;
+
+export const useWallpaper = () => useSyncExternalStore(subscribe, () => wallpaper, () => wallpaper);
+
+/** Shows the wallpaper straight away and saves it; resolves false if the database couldn't be reached. */
+export function setWallpaper(n) {
+  wallpaper = n;
+  listeners.forEach((l) => l());
+  return save('wallpaper', db.saveWallpaper(n));
 }
 
 export function getPersonalisation() {

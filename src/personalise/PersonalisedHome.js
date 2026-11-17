@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 
 import WestpacLogo from '../../components/WestpacLogo';
+import WallpaperBackground, { useWallpaperPanel } from './WallpaperBackground';
 import ActionsCard from '../actions/ActionsCard';
 import { useTabBarSpace } from '../../components/GlassTabBar';
 import { HomeStyleProvider, T } from './ui';
@@ -73,9 +74,19 @@ function AskBar({ theme, d, onAsk, onVoice }) {
 
 // The home's widgets, top to bottom. Needs a HomeStyleProvider above it (the standard home uses this too).
 export function HomeWidgets({ home }) {
+  // Over a wallpaper, each widget gets its own frosted panel so text stays readable.
+  const panel = useWallpaperPanel(home.theme.bg);
   return home.sections.map((section, i) => {
     const Widget = SECTIONS[section.type];
-    return Widget ? <Widget key={`${section.type}-${i}`} section={section} home={home} /> : null;
+    if (!Widget) return null;
+    const widget = <Widget key={`${section.type}-${i}`} section={section} home={home} />;
+    return panel ? (
+      <View key={`${section.type}-${i}`} style={[panel, { paddingBottom: 8 }]}>
+        {widget}
+      </View>
+    ) : (
+      widget
+    );
   });
 }
 
@@ -83,15 +94,19 @@ export default function PersonalisedHome({ home, onEdit, onCustomise, onAsk, onV
   const insets = useSafeAreaInsets();
   const tabBarSpace = useTabBarSpace();
   const { theme, d, template } = home;
+  const panel = useWallpaperPanel(theme.bg);
 
   return (
     <HomeStyleProvider value={{ theme, d, home }}>
       <StatusBar style={theme.dark ? 'light' : 'dark'} />
+      {/* The wallpaper (if any) sits behind the scrolling content, washed with the theme's background colour. */}
+      <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      <WallpaperBackground wash={theme.bg} />
       <ScrollView
-        style={{ flex: 1, backgroundColor: theme.bg }}
+        style={{ flex: 1, backgroundColor: 'transparent' }}
         contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: tabBarSpace }}
       >
-        <View style={{ paddingHorizontal: d.pad }}>
+        <View style={[{ paddingHorizontal: d.pad }, panel && { ...panel, paddingVertical: 12 }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <WestpacLogo width={44} color={theme.dark ? theme.text : theme.link} />
             <View style={{ flexDirection: 'row', gap: 16 }}>
@@ -113,6 +128,7 @@ export default function PersonalisedHome({ home, onEdit, onCustomise, onAsk, onV
 
         <HomeWidgets home={home} />
       </ScrollView>
+      </View>
     </HomeStyleProvider>
   );
 }

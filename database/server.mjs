@@ -5,6 +5,7 @@
 //   GET /api/home       -> { userId, theme, themes: [{ name, label }], widgets: [{ id, name }], homepage: [widget ids, top first] }
 //   GET /api/banking    -> { accounts: [...], transactions: [...] } for the home widgets (never sent to the AI)
 //   PUT /api/theme      { theme: 'forest' }   saves customisation.theme
+//   PUT /api/wallpaper  { wallpaper: 7 }      saves customisation.wallpaper (0 = none; n = assets/wallpapers/full/n.jpg)
 //   PUT /api/homepage   { widgets: [1, 5, 7] } replaces homepage_widgets (priority 1 = top); entries can also be
 //                       { id, variant, count } to save each widget's style. GET /api/home returns those as
 //                       homepageSettings: [{ id, variant, count }].
@@ -23,7 +24,7 @@
 //
 // Uses Node's built-in node:sqlite, so there is nothing to install.
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
@@ -38,6 +39,9 @@ class HttpError extends Error {
     this.status = status;
   }
 }
+
+// The app's wallpaper images (made by scripts/resize_wallpapers.py from wallpapers/).
+const wallpaperExists = (n) => existsSync(new URL(`../assets/wallpapers/full/${n}.jpg`, import.meta.url));
 
 // Transactions in app.db use dd/mm/yyyy dates.
 const txnDate = (d) =>
@@ -67,6 +71,7 @@ export function createApi(db, { now = () => new Date() } = {}) {
     return {
       userId,
       theme: db.prepare('SELECT theme FROM customisation WHERE user_ID = ? LIMIT 1').get(userId)?.theme ?? null,
+      wallpaper: db.prepare('SELECT wallpaper FROM customisation WHERE user_ID = ? LIMIT 1').get(userId)?.wallpaper ?? 0,
       themes: db.prepare('SELECT name, label FROM themes ORDER BY rowid').all().map((r) => ({ ...r })),
       widgets: db.prepare('SELECT widget_ID AS id, name FROM widgets ORDER BY widget_ID').all().map((r) => ({ ...r })),
       homepage: homepageRows(userId).map((r) => r.id),
@@ -94,6 +99,20 @@ export function createApi(db, { now = () => new Date() } = {}) {
     const { changes } = db.prepare('UPDATE customisation SET theme = ? WHERE user_ID = ?').run(theme, userId);
     if (!changes) db.prepare('INSERT INTO customisation (user_ID, theme) VALUES (?, ?)').run(userId, theme);
     return { theme };
+  };
+
+  // 0 = no wallpaper, otherwise n must have an image at assets/wallpapers/full/n.jpg.
+  const setWallpaper = ({ wallpaper } = {}) => {
+    if (!Number.isInteger(wallpaper) || wallpaper < 0 || (wallpaper > 0 && !wallpaperExists(wallpaper))) {
+      throw new HttpError(400, `Unknown wallpaper ${JSON.stringify(wallpaper)}.`);
+    }
+    const userId = currentUser();
+    const { changes } = db.prepare('UPDATE customisation SET wallpaper = ? WHERE user_ID = ?').run(wallpaper, userId);
+    // No customisation row yet: theme is required, so start with the Westpac theme.
+    if (!changes) {
+      db.prepare("INSERT INTO customisation (user_ID, theme, wallpaper) VALUES (?, 'westpac', ?)").run(userId, wallpaper);
+    }
+    return { wallpaper };
   };
 
   const setHomepage = ({ widgets } = {}) => {
@@ -302,6 +321,7 @@ export function createApi(db, { now = () => new Date() } = {}) {
     ['GET', '/api/home', () => getHome()],
     ['GET', '/api/banking', () => getBanking()],
     ['PUT', '/api/theme', (_, body) => setTheme(body)],
+    ['PUT', '/api/wallpaper', (_, body) => setWallpaper(body)],
     ['PUT', '/api/homepage', (_, body) => setHomepage(body)],
     ['PUT', '/api/session', (_, body) => signIn(body)],
     ['DELETE', '/api/session', () => signOut()],
@@ -336,9 +356,17 @@ export function createApi(db, { now = () => new Date() } = {}) {
 
 // Columns added to existing tables after app.db was first built (CREATE TABLE IF NOT EXISTS won't add them).
 export function migrate(db) {
-  const has = (table, column) => db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
+  const columns = (table) => db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+  // A column is missing only if its table exists without it (tables themselves come from schema.sql).
+  const has = (table, column) => {
+    const cols = columns(table);
+    return !cols.length || cols.includes(column);
+  };
   if (!has('homepage_widgets', 'variant')) db.exec('ALTER TABLE homepage_widgets ADD COLUMN variant TEXT');
   if (!has('homepage_widgets', 'count')) db.exec('ALTER TABLE homepage_widgets ADD COLUMN count INTEGER');
+  if (!has('customisation', 'wallpaper')) {
+    db.exec('ALTER TABLE customisation ADD COLUMN wallpaper INTEGER NOT NULL DEFAULT 0');
+  }
 }
 
 function startServer({ file, port }) {

@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS transactions (
 -- No primary key, as requested.
 CREATE TABLE IF NOT EXISTS customisation (
     user_ID           INTEGER NOT NULL REFERENCES users(ID),
-    theme             TEXT    NOT NULL
+    theme             TEXT    NOT NULL,
+    wallpaper         INTEGER NOT NULL DEFAULT 0   -- 0 = none, n = assets/wallpapers/full/n.jpg
 );
 
 -- Every widget the home page can show (keep in sync with WIDGETS in src/personalise/widgetCatalog.js).

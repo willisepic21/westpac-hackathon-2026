@@ -10,6 +10,7 @@ import AssistantSheet from '../src/voice/AssistantSheet';
 import PersonalisedHome, { HomeWidgets } from '../src/personalise/PersonalisedHome';
 import QuestionSheet from '../src/personalise/QuestionSheet';
 import WidgetEditor from '../src/personalise/WidgetEditor';
+import WallpaperBackground, { useHasWallpaper } from '../src/personalise/WallpaperBackground';
 import { buildHome, buildStandardHome } from '../src/personalise/buildHome';
 import { HomeStyleProvider } from '../src/personalise/ui';
 import {
@@ -168,11 +169,15 @@ function StandardHome({ onAsk, onVoice, onPersonalise, onCustomise }) {
   const tabBarSpace = useTabBarSpace();
   const home = useMemo(buildStandardHome, []);
   const { theme, d } = home;
+  // With a wallpaper, the panel under the header is see-through so the wallpaper shows behind the widgets.
+  const hasWallpaper = useHasWallpaper();
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.bg }]} contentContainerStyle={{ paddingBottom: tabBarSpace }}>
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+    <WallpaperBackground wash={theme.bg} />
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: tabBarSpace }}>
       <Header onAsk={onAsk} onVoice={onVoice} />
 
-      <View style={[styles.panel, { backgroundColor: theme.bg }]}>
+      <View style={[styles.panel, hasWallpaper ? styles.panelOnWallpaper : { backgroundColor: theme.bg }]}>
         <TouchableOpacity style={styles.personaliseCard} onPress={onPersonalise} activeOpacity={0.85}>
           <Ionicons name="sparkles" size={22} color="#fff" />
           <View style={{ flex: 1 }}>
@@ -184,7 +189,11 @@ function StandardHome({ onAsk, onVoice, onPersonalise, onCustomise }) {
 
         <ActionsCard style={{ marginHorizontal: 16, marginTop: 18 }} />
 
-        <TouchableOpacity style={styles.customiseRow} onPress={onCustomise} accessibilityLabel="Customise widgets">
+        <TouchableOpacity
+          style={[styles.customiseRow, hasWallpaper && styles.customiseOnWallpaper]}
+          onPress={onCustomise}
+          accessibilityLabel="Customise widgets"
+        >
           <Ionicons name="options-outline" size={18} color={theme.link} />
           <Text style={[styles.customiseText, { color: theme.link }]}>Customise widgets</Text>
         </TouchableOpacity>
@@ -194,6 +203,7 @@ function StandardHome({ onAsk, onVoice, onPersonalise, onCustomise }) {
         </HomeStyleProvider>
       </View>
     </ScrollView>
+    </View>
   );
 }
 
@@ -207,6 +217,12 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
   },
   customiseText: { fontSize: 14, fontWeight: '600' },
+  customiseOnWallpaper: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
   // "Make this home yours" banner that opens the question pop-up
   personaliseCard: {
     flexDirection: 'row',
@@ -274,6 +290,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 16, color: '#111827' },
 
   // Panel under the header: the banner, then the widgets (which pad themselves)
+  panelOnWallpaper: { backgroundColor: 'transparent', marginTop: 0, paddingTop: 16 },
   panel: {
     marginTop: -36,
     borderTopLeftRadius: 16,

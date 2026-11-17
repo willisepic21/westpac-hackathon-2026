@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTabBarSpace } from '../components/GlassTabBar';
 import ActionsScreen from '../src/actions/ActionsScreen';
+import WallpaperScreen from '../src/personalise/WallpaperScreen';
+import { useWallpaper } from '../src/personalise/store';
 import { useActions } from '../src/actions/store';
 import { navigate, useRoute } from '../src/navigation';
 import { signOut, useUser } from '../src/session';
@@ -14,6 +16,7 @@ const NAVY = '#1F1C4F';
 // Sub-pages reachable from More. Add new sections here.
 const PAGES = {
   Actions: ActionsScreen,
+  Wallpaper: WallpaperScreen,
 };
 
 export default function MoreScreen() {
@@ -28,6 +31,7 @@ function MoreMenu() {
   const tabBarSpace = useTabBarSpace();
   const { actions } = useActions();
   const user = useUser();
+  const wallpaper = useWallpaper();
 
   const items = [
     {
@@ -37,6 +41,12 @@ function MoreMenu() {
       subtitle: actions.length
         ? `${actions.length} automation${actions.length === 1 ? '' : 's'} running`
         : 'Automate moving money between your accounts',
+    },
+    {
+      key: 'Wallpaper',
+      icon: 'image',
+      title: 'Wallpaper',
+      subtitle: wallpaper ? `Wallpaper ${wallpaper} on your Home screen` : 'Choose a background for your Home screen',
     },
   ];
 

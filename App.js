@@ -79,6 +79,7 @@ function Tabs() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
+  // overflow: 'hidden' keeps anything oversized (e.g. a wallpaper image) from widening the page on web.
+  container: { flex: 1, backgroundColor: '#F9FAFB', overflow: 'hidden' },
   screenContainer: { flex: 1 },
 });

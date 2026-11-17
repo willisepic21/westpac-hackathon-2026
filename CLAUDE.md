@@ -20,7 +20,8 @@ for the ai implementation in the app all the rules for the ai are written in ai_
 | SQLite database + API (`database/`) | Theme + Home widgets saved and restored; widgets show DB accounts + transactions |
 | Actions: AI-set-up money automations, alerts, More > Actions page, Home card | Done, tested |
 | Accounts, Payments, Search screens | Placeholders, waiting on teammate mockups |
-| More screen | Menu with Actions; other sections waiting on teammate mockups |
+| Wallpapers: More > Wallpaper picker, shown behind both homes, saved per user | Done, tested |
+| More screen | Menu with Actions and Wallpaper; other sections waiting on teammate mockups |
 | Persisting personalisation across reloads | Theme + widgets persist (via `npm run db`); question answers don't |
 
 ## App structure
@@ -29,7 +30,8 @@ for the ai implementation in the app all the rules for the ai are written in ai_
   - `npm start` (or `npm run web` / `npm run android` / `npm run ios`), plus `npm run db` in a second terminal for the
     database API (the app still runs without it, but nothing is saved)
   - `npm test` runs `tests/actions.test.mjs` (action rules, API + scheduler, AI tools), `tests/voice.test.mjs` (Groq client, tool loop, rate-limit retry, `ai_perms.md` in the prompt),
-    `tests/personalise.test.mjs` (templates, `buildHome`, AI widget + theme edits) and `tests/database.test.mjs`
+    `tests/personalise.test.mjs` (templates, `buildHome`, AI widget + theme edits), `tests/widgetEditor.test.mjs`,
+    `tests/wallpaper.test.mjs` and `tests/database.test.mjs`
     (API against an in-memory copy of `schema.sql`). node:test, no device needed.
 - See `AGENTS.md` for general Expo guidance. Note: the app does NOT use Expo Router — navigation is manual.
 - `index.js` registers `App.js` as the root component.
@@ -68,6 +70,20 @@ for the ai implementation in the app all the rules for the ai are written in ai_
 - Tool calling: `chatWithTools()` in `groq.js` runs any tools the AI asks for (`{ name, description, parameters,
   run }`) and loops until it replies with text. `VoiceAssistant` takes `tools` plus `getContext()`, which is added
   to the system prompt fresh on every question.
+
+### Wallpapers
+
+More > Wallpaper (`src/personalise/WallpaperScreen.js`) picks a Home background, saved in
+`customisation.wallpaper` (0 = none) via `PUT /api/wallpaper` and restored on sign-in (`useWallpaper()` /
+`setWallpaper()` in `store.js`).
+- The originals in `wallpapers/` (n.jpg, ~4000x3000, 31 MB) are not bundled. `python scripts/resize_wallpapers.py`
+  makes `assets/wallpapers/full/` (shortest side 1080) and `thumb/` (240) and regenerates
+  `src/personalise/wallpapers.js` (`WALLPAPERS`, the `require()` list). **Re-run it after adding or changing a
+  wallpaper**; `tests/wallpaper.test.mjs` fails if they're out of sync. The server only accepts numbers that have
+  a file in `assets/wallpapers/full/`.
+- `WallpaperBackground.js` draws it behind both homes (fixed while content scrolls). Over a wallpaper each widget
+  and the personalised header get a frosted panel (`useWallpaperPanel()`), so text stays readable.
+- The AI can't change the wallpaper (no tool for it yet).
 
 ### Manual widget editing (no AI)
 

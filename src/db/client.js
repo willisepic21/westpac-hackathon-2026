@@ -51,3 +51,6 @@ export const deleteAction = (id) => call('DELETE', `/api/actions/${id}`);
 export const skipAction = (id) => call('POST', `/api/actions/${id}/skip`);
 export const dismissActionAlert = (id) => call('POST', `/api/actions/${id}/dismiss`);
 export const runActionNow = (id) => call('POST', `/api/actions/${id}/run`);
+
+// Home wallpaper: 0 = none, n = assets/wallpapers/full/n.jpg (see src/personalise/wallpapers.js).
+export const saveWallpaper = (wallpaper) => call('PUT', '/api/wallpaper', { wallpaper });
