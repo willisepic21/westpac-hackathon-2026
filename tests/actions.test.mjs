@@ -202,7 +202,8 @@ test('AI tools: context shows account names and rules only; create waits for the
 
   const ctx = await context();
   assert.match(ctx, /Westpac Choice, Westpac Life/);
-  assert.match(ctx, /id 7: Move \$50/);
+  assert.match(ctx, /Move \$50.*\[id=7\]/);
+  assert.match(ctx, /never show or say it to the user/);
   assert.doesNotMatch(ctx, /balance:|\$1,874/i);
 
   const create = tools.find((t) => t.name === 'create_action');
@@ -234,6 +235,8 @@ test('AI tools: create_action asks for missing accounts, amount and time frame i
   assert.match(noFrequency, /Not set up.*how often.*Don't guess/);
   const nothing = await create.run({ kind: 'sweep' });
   assert.match(nothing, /comes from.*goes to.*balance to keep.*how often/);
+  assert.match(nothing, /don't add notes in brackets/);
+  assert.deepEqual(create.parameters.required, ['kind'], "the AI never has to invent an account to call the tool");
   assert.equal(proposals.length, 0, 'nothing is proposed until every detail is given');
 
   await create.run({ kind: 'transfer', from: 'Choice', to: 'Life', amount: 50, frequency: 'monthly' });

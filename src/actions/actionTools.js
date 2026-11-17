@@ -39,9 +39,16 @@ export function createActionTools({ getActions, propose, remove }) {
         'top_up = if the to account is under `threshold`, top it up from the from account. ' +
         'transfer = move a fixed `amount` every time.',
     },
-    from: { type: 'string', description: 'Account name the money comes out of, e.g. "Westpac Choice".' },
-    to: { type: 'string', description: 'Account name the money goes into, e.g. "Westpac Life".' },
     // Optional fields allow null: Groq validates strictly, and models often send null for fields they don't use.
+    // The accounts are optional too, so the model never has to invent one just to call the tool.
+    from: {
+      type: ['string', 'null'],
+      description: 'Account name the money comes out of, e.g. "Westpac Choice". null if the user hasn\'t said.',
+    },
+    to: {
+      type: ['string', 'null'],
+      description: 'Account name the money goes into, e.g. "Westpac Life". null if the user hasn\'t said.',
+    },
     threshold: {
       type: ['number', 'null'],
       description: 'Dollars. For sweep: balance to keep. For top_up: minimum balance. null for transfer.',
@@ -65,13 +72,14 @@ export function createActionTools({ getActions, propose, remove }) {
       description:
         'Set up a new money automation between the user\'s own accounts. The app shows it to the user to approve; ' +
         'this returns once they approve or decline. Only call this when the user asks for an automation.',
-      parameters: { type: 'object', properties: ruleParams, required: ['kind', 'from', 'to'] },
+      parameters: { type: 'object', properties: ruleParams, required: ['kind'] },
       run: async (args) => {
         const input = withoutNulls(args);
         const missing = missingDetails(input);
         if (missing.length) {
           return `Not set up: the user hasn't said ${missing.join(', ')}. Don't guess or use a default. Ask the user ` +
-            'for all of the missing details in one short question, then call create_action again.';
+            'for all of the missing details in one short question, then call create_action again. Ask in plain ' +
+            "words only: don't mention any account or value you filled in, and don't add notes in brackets.";
         }
         return outcome(await propose(input, {}), 'The user approved it and it is saved.');
       },
@@ -81,7 +89,7 @@ export function createActionTools({ getActions, propose, remove }) {
       description: 'Change an existing action (pass its id and only the fields that change). The user must approve.',
       parameters: {
         type: 'object',
-        properties: { id: { type: 'integer', description: 'Action id from the list.' }, ...ruleParams },
+        properties: { id: { type: 'integer', description: 'Action id from the list (internal; never show it to the user).' }, ...ruleParams },
         required: ['id'],
       },
       run: async ({ id, ...changes }) => outcome(await propose(withoutNulls(changes), { editId: id }), 'The user approved the change.'),
@@ -92,7 +100,7 @@ export function createActionTools({ getActions, propose, remove }) {
       parameters: { type: 'object', properties: { id: { type: 'integer' } }, required: ['id'] },
       run: async ({ id }) => {
         await remove(id);
-        return `Action ${id} deleted.`;
+        return 'Deleted. Tell the user by what it did, not its id.';
       },
     },
   ];
@@ -112,11 +120,14 @@ export function createActionTools({ getActions, propose, remove }) {
         "the tool, say what the tool result says (approved or not). Before calling create_action you need three " +
         'things from the user: the accounts (from and to), the details (the dollar amount or balance), and the time ' +
         'frame (daily, weekly or monthly). Never assume any of them, including weekly; ask for whatever is missing. ' +
-        'When asking which account, list their account names one per line. Actions run at 9am; the user is alerted ' +
+        'When asking which account, list their account names one per line. Never guess an account, and never add side ' +
+        'notes or assumptions in brackets. Actions run at 9am; the user is alerted ' +
         'the day before and can skip, edit or delete it.',
       `The user's accounts (names only): ${accounts.map((a) => a.name).join(', ') || 'none'}`,
       actions.length
-        ? `Their actions:\n${actions.map((a) => `- id ${a.id}: ${a.description} ${describeSchedule(a)}`).join('\n')}`
+        ? 'Their actions. The id is only for edit_action / delete_action: never show or say it to the user; refer to ' +
+          `an action by what it does (e.g. "your Choice to Life sweep").\n` +
+          actions.map((a) => `${a.description} ${describeSchedule(a)} [id=${a.id}]`).join('\n')
         : 'They have no actions yet.',
     ].join('\n');
   };
