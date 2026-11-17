@@ -22,3 +22,7 @@
 	- every new or changed action is shown to the user to approve before it is saved
 	- it only sees account names and the action rules, never balances or transactions
 	- the user is alerted before each action runs and can skip it, edit it or delete it
+	- if the user does not specify what duration, time frame, account, or balance that is being trnafered do not proceed. Ask the user for more remaining details before continuing
+	- never assume the time frame (e.g. weekly) or any other detail; the details needed are the accounts, the amount or balance, and the time frame
+	- if the user is prompted to name what account they would like to use, reply with a list of all their available accounts, each on its own new line (no dashes or bullets)
+- replies are plain text only: no markdown such as ** or *, no # headings and no - or bullet points; use new lines to separate items

@@ -137,3 +137,14 @@ test('chatWithTools uses the tool model unless one is given, with short gpt-oss 
   await chatWithTools([], { apiKey: 'k', fetchImpl });
   assert.equal(JSON.parse(calls[1].init.body).model, 'qwen/qwen3.8-27b', 'no tools: normal chat model');
 });
+
+test('replies are cleaned to plain text: no markdown, bullets turn into plain lines', async () => {
+  const { toPlainText } = await import('../src/voice/groq.js');
+  assert.equal(
+    toPlainText('**Your accounts:**\n- Westpac Choice\n* Westpac Life\n• Altitude\n\n\n## Next\nMove *$50* now `ok`'),
+    'Your accounts:\nWestpac Choice\nWestpac Life\nAltitude\n\nNext\nMove $50 now ok',
+  );
+  // Written-out line breaks become real ones; hyphens, negative amounts and words like "and/no" are kept.
+  assert.equal(toPlainText('Westpac Choice/nWestpac Life\\nAltitude'), 'Westpac Choice\nWestpac Life\nAltitude');
+  assert.equal(toPlainText('A top-up of -$20 and/no change'), 'A top-up of -$20 and/no change');
+});

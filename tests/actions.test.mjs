@@ -217,3 +217,26 @@ test('AI tools: context shows account names and rules only; create waits for the
   await edit.run({ id: 7, threshold: 800, amount: null, frequency: null });
   assert.deepEqual(proposals[2], { input: { threshold: 800 }, opts: { editId: 7 } });
 });
+
+test('AI tools: create_action asks for missing accounts, amount and time frame instead of assuming them', async () => {
+  const proposals = [];
+  const { tools, context } = createActionTools({
+    getActions: async () => ({ accounts: ACCOUNTS, actions: [] }),
+    propose: async (input) => {
+      proposals.push(input);
+      return { approved: true, message: 'Action set up.' };
+    },
+    remove: async () => {},
+  });
+  const create = tools.find((t) => t.name === 'create_action');
+
+  const noFrequency = await create.run({ kind: 'transfer', from: 'Choice', to: 'Life', amount: 50, frequency: null });
+  assert.match(noFrequency, /Not set up.*how often.*Don't guess/);
+  const nothing = await create.run({ kind: 'sweep' });
+  assert.match(nothing, /comes from.*goes to.*balance to keep.*how often/);
+  assert.equal(proposals.length, 0, 'nothing is proposed until every detail is given');
+
+  await create.run({ kind: 'transfer', from: 'Choice', to: 'Life', amount: 50, frequency: 'monthly' });
+  assert.equal(proposals[0].frequency, 'monthly');
+  assert.match(await context(), /Never assume any of them, including weekly/);
+});

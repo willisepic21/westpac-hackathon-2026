@@ -15,6 +15,20 @@ import { FREQUENCIES, KINDS, describeSchedule } from './rules.js';
 // Models send null for fields they don't use; drop them so an edit doesn't wipe the existing value.
 const withoutNulls = (obj) => Object.fromEntries(Object.entries(obj).filter(([, v]) => v != null));
 
+// What a new action needs from the user before the AI may propose it: both accounts, the dollar figure for its kind
+// and how often it runs. Returns readable names of anything missing.
+export function missingDetails({ kind, from, to, threshold, amount, frequency }) {
+  const missing = [];
+  if (!from) missing.push('which account the money comes from');
+  if (!to) missing.push('which account it goes to');
+  if (kind === 'transfer' && amount == null) missing.push('how much to move each time');
+  if (kind && kind !== 'transfer' && threshold == null) {
+    missing.push(kind === 'sweep' ? 'the balance to keep in the from account' : 'the minimum balance to top up to');
+  }
+  if (!frequency) missing.push('how often it should run (daily, weekly or monthly)');
+  return missing;
+}
+
 export function createActionTools({ getActions, propose, remove }) {
   const ruleParams = {
     kind: {
@@ -36,7 +50,7 @@ export function createActionTools({ getActions, propose, remove }) {
     frequency: {
       type: ['string', 'null'],
       enum: [...FREQUENCIES, null],
-      description: 'How often it checks / runs. Default weekly.',
+      description: "How often it checks / runs. Only what the user said; never assume one. null if they haven't said.",
     },
   };
 
@@ -52,7 +66,15 @@ export function createActionTools({ getActions, propose, remove }) {
         'Set up a new money automation between the user\'s own accounts. The app shows it to the user to approve; ' +
         'this returns once they approve or decline. Only call this when the user asks for an automation.',
       parameters: { type: 'object', properties: ruleParams, required: ['kind', 'from', 'to'] },
-      run: async (args) => outcome(await propose(withoutNulls(args), {}), 'The user approved it and it is saved.'),
+      run: async (args) => {
+        const input = withoutNulls(args);
+        const missing = missingDetails(input);
+        if (missing.length) {
+          return `Not set up: the user hasn't said ${missing.join(', ')}. Don't guess or use a default. Ask the user ` +
+            'for all of the missing details in one short question, then call create_action again.';
+        }
+        return outcome(await propose(input, {}), 'The user approved it and it is saved.');
+      },
     },
     {
       name: 'edit_action',
@@ -87,9 +109,11 @@ export function createActionTools({ getActions, propose, remove }) {
       'You can set up Actions: automatic transfers between the user\'s own accounts, e.g. "if Choice is over $500, ' +
         'move the extra to savings every week". Use create_action, edit_action and delete_action. You only set the ' +
         "rule; you can't see balances. Every new or changed action is shown to the user to approve, so after calling " +
-        "the tool, say what the tool result says (approved or not). If the user's request is missing the accounts or " +
-        'the dollar amount, ask for it first. Actions run at 9am; the user is alerted the day before and can skip, ' +
-        'edit or delete it.',
+        "the tool, say what the tool result says (approved or not). Before calling create_action you need three " +
+        'things from the user: the accounts (from and to), the details (the dollar amount or balance), and the time ' +
+        'frame (daily, weekly or monthly). Never assume any of them, including weekly; ask for whatever is missing. ' +
+        'When asking which account, list their account names one per line. Actions run at 9am; the user is alerted ' +
+        'the day before and can skip, edit or delete it.',
       `The user's accounts (names only): ${accounts.map((a) => a.name).join(', ') || 'none'}`,
       actions.length
         ? `Their actions:\n${actions.map((a) => `- id ${a.id}: ${a.description} ${describeSchedule(a)}`).join('\n')}`

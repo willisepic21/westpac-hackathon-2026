@@ -19,7 +19,8 @@ export const DEFAULT_SYSTEM_PROMPT = [
   'The user often speaks to you; their words are transcribed automatically and may contain ' +
   'small transcription errors, so infer what they meant.',
   'Keep answers short, friendly and conversational. Use Australian English and AUD.',
-  'Reply in plain text only: the app cannot display markdown, so no asterisks, headings or tables.',
+  'Reply in plain text only: the app cannot display markdown, so never use *, **, #, ` or tables, and never ' +
+    'start a line with - or a bullet. To list things, put each item on its own new line with nothing in front of it.',
   "Rules you must always follow (from the team's AI permission spec):",
   AI_PERMS.trim(),
   '- General information only, not personal financial advice.',
@@ -122,7 +123,25 @@ async function complete(
 }
 
 // Drop reasoning if a model still returns it inline.
-const cleanReply = (content) => (content ?? '').replace(/<think>[\s\S]*?(<\/think>|$)/g, '').trim();
+const cleanReply = (content) => toPlainText((content ?? '').replace(/<think>[\s\S]*?(<\/think>|$)/g, ''));
+
+/**
+ * The chat bubble shows raw text, so strip any markdown the model uses anyway (it sometimes ignores the prompt):
+ * **bold**, *italics*, `code`, # headings and "- " / "* " / "• " bullets. Line breaks are kept, and a written-out
+ * "\\n" or "/n" (models copy these from the rules) becomes a real line break.
+ */
+export function toPlainText(text) {
+  return text
+    .replace(/\\n/g, '\n')
+    .replace(/\/n(?=[\sA-Z0-9]|$)/g, '\n')
+    .replace(/\*\*|__|`/g, '')
+    .replace(/\*([^*\n]+)\*/g, '$1')
+    .replace(/^[ \t]*#{1,6}[ \t]+/gm, '')
+    .replace(/^[ \t]*[-*•][ \t]+/gm, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
 
 /** Send a chat conversation to Groq and return the reply text. */
 export async function chat(messages, options) {

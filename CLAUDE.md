@@ -61,7 +61,9 @@ for the ai implementation in the app all the rules for the ai are written in ai_
 - Needs `EXPO_PUBLIC_GROQ_API_KEY` in `.env` (see `.env.example`). The key is bundled into the app — demo only.
 - Closing the assistant sheet clears the chat: the AI forgets the conversation (`VoiceAssistant.reset()`) and any
   reply still loading is dropped, so each time it opens is a fresh chat.
-- Replies are capped at 600 tokens (Groq free tier: 1000 output tokens/min), plain text only (no markdown).
+- Replies are capped at 600 tokens (Groq free tier: 1000 output tokens/min), plain text only: the prompt
+  forbids markdown and `toPlainText()` in `groq.js` strips any `**`, `*`, `#` or `-` bullets the model still sends
+  (and turns a written-out `\n` or `/n` into a real line break).
   429 rate-limit errors are retried automatically if Groq asks for a wait of 20s or less.
 - Tool calling: `chatWithTools()` in `groq.js` runs any tools the AI asks for (`{ name, description, parameters,
   run }`) and loops until it replies with text. `VoiceAssistant` takes `tools` plus `getContext()`, which is added
@@ -103,7 +105,9 @@ every week". Code in `src/actions/`:
   9am on `nextRun` (`RUN_HOUR`); daily / weekly / monthly.
 - `store.js` keeps the actions from the API (`useActions()`), refreshed every minute by `startActionPolling()` in
   `App.js`, plus the AI's pending proposal (`proposeAction()` / `usePendingProposal()`).
-- AI: `actionTools.js` (pure, tested) gives the assistant `create_action` / `edit_action` / `delete_action`; wired up
+- AI: `actionTools.js` (pure, tested) gives the assistant `create_action` / `edit_action` / `delete_action`.
+  `create_action` refuses (and tells the AI to ask the user) until it has both accounts, the amount / balance and
+  the time frame (`missingDetails()`); it never assumes weekly. Tools are wired up
   in `assistantTools.js` and added to the Home assistant in `HomeScreen.js`. The AI only sees account names and the
   rules, never balances. New or changed actions appear as an approval card (`ProposalCard.js`, inside
   `AssistantSheet`) and the tool waits for Approve / Decline; closing the assistant declines.
