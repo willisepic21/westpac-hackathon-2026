@@ -6,6 +6,7 @@
 //   GET /api/banking    -> { accounts: [...], transactions: [...] } for the home widgets (never sent to the AI)
 //   PUT /api/theme      { theme: 'forest' }   saves customisation.theme
 //   PUT /api/homepage   { widgets: [1, 5, 7] } replaces homepage_widgets (priority 1 = top)
+//   PUT /api/session    { email: 'will@example.com' } signs that user in -> { userId, name }
 //
 // Uses Node's built-in node:sqlite, so there is nothing to install.
 
@@ -88,11 +89,22 @@ export function createApi(db) {
     return { widgets };
   };
 
+  // Demo sign-in: the users table has no passwords, so the email alone picks the user.
+  const signIn = ({ email } = {}) => {
+    const user = db
+      .prepare('SELECT ID, name FROM users WHERE lower(email) = lower(?)')
+      .get(String(email ?? '').trim());
+    if (!user) throw new HttpError(401, 'No customer with that email.');
+    db.prepare('INSERT INTO session (ID, user_ID) VALUES (1, ?) ON CONFLICT(ID) DO UPDATE SET user_ID = excluded.user_ID').run(user.ID);
+    return { userId: user.ID, name: user.name };
+  };
+
   const routes = {
     'GET /api/home': getHome,
     'GET /api/banking': getBanking,
     'PUT /api/theme': setTheme,
     'PUT /api/homepage': setHomepage,
+    'PUT /api/session': signIn,
   };
 
   return (method, path, body) => {

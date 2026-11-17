@@ -92,3 +92,17 @@ test('GET /api/banking returns only the signed-in user\'s accounts and transacti
 test('unknown routes are 404', () => {
   assert.equal(createApi(freshDb())('DELETE', '/api/home').status, 404);
 });
+
+test('PUT /api/session signs in by email (any case) and switches whose home is read', () => {
+  const db = freshDb();
+  db.exec("UPDATE users SET email = 'sam@example.com' WHERE ID = 2");
+  const api = createApi(db);
+  const { status, json } = api('PUT', '/api/session', { email: '  Sam@Example.com ' });
+  assert.equal(status, 200);
+  assert.deepEqual(json, { userId: 2, name: 'Sam' });
+  assert.equal(api('GET', '/api/home').json.userId, 2);
+
+  const bad = api('PUT', '/api/session', { email: 'nobody@example.com' });
+  assert.equal(bad.status, 401);
+  assert.equal(api('GET', '/api/home').json.userId, 2);
+});

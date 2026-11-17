@@ -7,6 +7,7 @@
 import { TEMPLATES } from './templates.js';
 import { PALETTES, DENSITY } from './themes.js';
 import { DEFAULT_ANSWERS } from './questions.js';
+import { WIDGET_TYPES, newSection } from './widgetCatalog.js';
 
 const GOAL_LABEL = { house: 'House deposit', debt: 'Debt repayment', spending: 'Spending' };
 const CAP = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -54,6 +55,11 @@ export function prioritise(sections, frequency) {
   });
   return out;
 }
+
+// The standard home (a user with no saved homepage_widgets): every widget, in catalogue order, in Westpac colours.
+export const STANDARD_ANSWERS = { ...DEFAULT_ANSWERS, palette: 'westpac' };
+export const standardSections = () => WIDGET_TYPES.map((type) => newSection(type));
+export const buildStandardHome = () => buildHome(STANDARD_ANSWERS, { sections: standardSections() });
 
 // `sections` (optional) is a list edited by the AI assistant; it replaces the template's sections as-is.
 export function buildHome(rawAnswers, { templateId, sections: customSections } = {}) {

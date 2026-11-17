@@ -70,6 +70,14 @@ function AskBar({ theme, d, onAsk, onVoice }) {
   );
 }
 
+// The home's widgets, top to bottom. Needs a HomeStyleProvider above it (the standard home uses this too).
+export function HomeWidgets({ home }) {
+  return home.sections.map((section, i) => {
+    const Widget = SECTIONS[section.type];
+    return Widget ? <Widget key={`${section.type}-${i}`} section={section} home={home} /> : null;
+  });
+}
+
 export default function PersonalisedHome({ home, onEdit, onAsk, onVoice }) {
   const insets = useSafeAreaInsets();
   const tabBarSpace = useTabBarSpace();
@@ -94,10 +102,7 @@ export default function PersonalisedHome({ home, onEdit, onAsk, onVoice }) {
           <AskBar theme={theme} d={d} onAsk={onAsk} onVoice={onVoice} />
         </View>
 
-        {home.sections.map((section, i) => {
-          const Widget = SECTIONS[section.type];
-          return Widget ? <Widget key={`${section.type}-${i}`} section={section} home={home} /> : null;
-        })}
+        <HomeWidgets home={home} />
       </ScrollView>
     </HomeStyleProvider>
   );

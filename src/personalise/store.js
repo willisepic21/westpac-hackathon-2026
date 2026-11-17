@@ -9,11 +9,10 @@ import { useSyncExternalStore } from 'react';
 
 import * as db from '../db/client';
 import { MOCK_DATA, fromDatabase } from './bankData';
-import { buildHome } from './buildHome';
-import { DEFAULT_ANSWERS } from './questions';
+import { buildHome, STANDARD_ANSWERS, standardSections } from './buildHome';
 import { WIDGETS, newSection, widgetType } from './widgetCatalog';
 
-// null = standard home, otherwise { answers, sections? }.
+// null = standard home (every widget, see buildStandardHome()), otherwise { answers, sections? }.
 // `sections` is set when the AI assistant adds / removes / moves widgets; it replaces the template's list.
 let state = null;
 // The saved theme, applied when a standard home becomes personalised by the AI.
@@ -32,7 +31,7 @@ const emit = (next) => {
   listeners.forEach((l) => l());
 };
 
-const startingAnswers = () => (savedTheme ? { ...DEFAULT_ANSWERS, palette: savedTheme } : DEFAULT_ANSWERS);
+const startingAnswers = () => (savedTheme ? { ...STANDARD_ANSWERS, palette: savedTheme } : STANDARD_ANSWERS);
 const currentHome = () => buildHome(state.answers, { sections: state.sections });
 
 // Resolves true once saved, false (with a warning) if the database API can't be reached.
@@ -68,10 +67,14 @@ export function setHomeSections(sections) {
   return saveWidgets();
 }
 
-// Save the AI's theme choice (a PALETTES key). From the standard home this starts a personalised home.
+// Save the AI's theme choice (a PALETTES key). From the standard home this starts a personalised home
+// with the standard home's widgets.
 export function setTheme(theme) {
   const wasStandard = !state;
-  emit({ ...state, answers: { ...(state?.answers ?? DEFAULT_ANSWERS), palette: theme } });
+  emit({
+    answers: { ...(state?.answers ?? STANDARD_ANSWERS), palette: theme },
+    sections: state ? state.sections : standardSections(),
+  });
   return wasStandard ? all(saveCurrentTheme(), saveWidgets()) : saveCurrentTheme();
 }
 
@@ -107,6 +110,13 @@ async function loadHome() {
   } catch (e) {
     console.warn(`Could not load the home from the database (is \`npm run db\` running?): ${e.message}`);
   }
+}
+
+// Signing out (or in as someone else): forget the last user's home and banking data, without saving.
+export function clearLocal() {
+  savedTheme = null;
+  bank = MOCK_DATA;
+  emit(null);
 }
 
 export function getPersonalisation() {

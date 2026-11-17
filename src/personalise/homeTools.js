@@ -5,8 +5,7 @@
 //   const { tools, context } = createHomeTools({ getState, setSections, setTheme, getCatalog });
 //   new VoiceAssistant({ tools, getContext: context });
 
-import { buildHome } from './buildHome.js';
-import { DEFAULT_ANSWERS } from './questions.js';
+import { buildHome, buildStandardHome } from './buildHome.js';
 import { PALETTES } from './themes.js';
 import { WIDGETS, WIDGET_TYPES, describeCatalog, describeLayout, editLayout, widgetType } from './widgetCatalog.js';
 
@@ -31,7 +30,7 @@ export function createHomeTools({ getState, setSections, setTheme, getCatalog })
 
   const currentHome = () => {
     const state = getState();
-    return buildHome(state?.answers ?? DEFAULT_ANSWERS, { sections: state?.sections });
+    return state ? buildHome(state.answers, { sections: state.sections }) : buildStandardHome();
   };
 
   const run = async (edit) => {
@@ -109,8 +108,9 @@ export function createHomeTools({ getState, setSections, setTheme, getCatalog })
     const home = currentHome();
     const layout = state
       ? `Widgets on the user's home right now, top to bottom:\n${describeLayout(home.sections)}`
-      : 'The user is on the standard home, which has no widgets yet. Adding or removing a widget or changing ' +
-        `the theme switches them to a personalised home that starts with:\n${describeLayout(home.sections)}`;
+      : 'The user is on the standard home, which shows every widget. Adding, removing or moving a widget or ' +
+        'changing the theme switches them to a personalised home that starts from the same widgets. Widgets on ' +
+        `the standard home, top to bottom:\n${describeLayout(home.sections)}`;
     return [
       'You can change which widgets are on the home page with the add_widget, remove_widget and ' +
         'move_widget tools, and the colour theme with the set_theme tool. When the user asks to add, show, ' +
@@ -120,7 +120,7 @@ export function createHomeTools({ getState, setSections, setTheme, getCatalog })
         'a widget style, remove it and add it again with the new variant.',
       `Widgets available:\n${describeCatalog(catalog.widgets)}`,
       `Themes available:\n${catalog.themes.map((t) => `- ${t.name}: ${t.label}`).join('\n')}`,
-      `Current theme: ${state ? home.paletteKey : 'the standard Westpac home'}`,
+      `Current theme: ${home.paletteKey}${state ? '' : ' (the standard Westpac home)'}`,
       layout,
     ].join('\n\n');
   };

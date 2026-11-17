@@ -5,6 +5,7 @@
 //   const { accounts, transactions } = await getBanking();   // for the widgets only, never the AI
 //   await saveTheme('forest');
 //   await saveHomepage([1, 5, 7]);   // widget IDs, top first
+//   const { userId, name } = await signIn('will@example.com');
 
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
@@ -29,7 +30,7 @@ async function call(method, path, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error || `Database API error ${res.status}`);
+  if (!res.ok) throw Object.assign(new Error(json.error || `Database API error ${res.status}`), { status: res.status });
   return json;
 }
 
@@ -37,3 +38,4 @@ export const getHome = () => call('GET', '/api/home');
 export const getBanking = () => call('GET', '/api/banking');
 export const saveTheme = (theme) => call('PUT', '/api/theme', { theme });
 export const saveHomepage = (widgetIds) => call('PUT', '/api/homepage', { widgets: widgetIds });
+export const signIn = (email) => call('PUT', '/api/session', { email });

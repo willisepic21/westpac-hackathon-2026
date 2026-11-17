@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -8,8 +8,9 @@ import AccountsScreen from './screens/AccountsScreen';
 import SearchScreen from './screens/SearchScreen';
 import PaymentsScreen from './screens/PaymentsScreen';
 import MoreScreen from './screens/MoreScreen';
+import SignInScreen from './screens/SignInScreen';
 import GlassTabBar from './components/GlassTabBar';
-import { loadFromDatabase } from './src/personalise/store';
+import { useUser } from './src/session';
 
 const TABS = [
   { name: 'Home', icon: 'home' },
@@ -28,16 +29,30 @@ const SCREENS = {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('Home');
-  const Screen = SCREENS[activeTab] ?? HomeScreen;
-
-  // Restore the saved theme and home widgets (needs `npm run db`; without it the app starts fresh).
-  useEffect(() => {
-    loadFromDatabase();
-  }, []);
+  // Signing in loads the user's saved theme and home widgets (src/session.js).
+  const user = useUser();
 
   return (
     <SafeAreaProvider>
+      {user ? (
+        <Tabs />
+      ) : (
+        <>
+          <StatusBar style="light" />
+          <SignInScreen />
+        </>
+      )}
+    </SafeAreaProvider>
+  );
+}
+
+// Remounts on every sign-in, so each user starts on Home.
+function Tabs() {
+  const [activeTab, setActiveTab] = useState('Home');
+  const Screen = SCREENS[activeTab] ?? HomeScreen;
+
+  return (
+    <>
       <StatusBar style={activeTab === 'Home' ? 'light' : 'dark'} />
       <View style={styles.container}>
         <View style={styles.screenContainer}>
@@ -47,7 +62,7 @@ export default function App() {
         {/* Floats over the screens; screens pad their bottom with useTabBarSpace() */}
         <GlassTabBar tabs={TABS} activeTab={activeTab} onSelect={setActiveTab} />
       </View>
-    </SafeAreaProvider>
+    </>
   );
 }
 

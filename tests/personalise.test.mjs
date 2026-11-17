@@ -142,6 +142,10 @@ test('home tools let the AI see the layout and edit it, starting from the standa
   assert.doesNotMatch(ctx, /goal: Money goal\./, 'widgets missing from the database are not offered');
   assert.doesNotMatch(ctx, /\$/, 'no balances are shown to the AI');
 
+  // The standard home already shows every widget.
+  await assert.rejects(tool('add_widget').run({ type: 'netWorth' }), /already on the home/);
+  await tool('remove_widget').run({ type: 'netWorth' });
+  assert.ok(state.sections.length > 1 && !state.sections.some((s) => s.type === 'netWorth'));
   const result = await tool('add_widget').run({ type: 'netWorth', position: 1 });
   assert.match(result, /Added Net worth at position 1/);
   assert.equal(state.sections[0].type, 'netWorth');
@@ -255,4 +259,12 @@ test('database accounts and transactions become widget data; missing tables stay
   assert.equal(data.CONTACTS, MOCK.CONTACTS);
   assert.equal(data.WEEKLY.budget, MOCK.WEEKLY.budget);
   assert.equal(data.GOALS.house, MOCK.GOALS.house);
+});
+
+test('the standard home (no saved widgets) shows every widget in Westpac colours', async () => {
+  const { buildStandardHome } = await import('../src/personalise/buildHome.js');
+  const { WIDGET_TYPES } = await import('../src/personalise/widgetCatalog.js');
+  const home = buildStandardHome();
+  assert.deepEqual(home.sections.map((s) => s.type), WIDGET_TYPES);
+  assert.equal(home.paletteKey, 'westpac');
 });

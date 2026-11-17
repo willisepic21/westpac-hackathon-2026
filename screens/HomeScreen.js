@@ -5,9 +5,10 @@ import { Ionicons } from '@expo/vector-icons';
 
 import WestpacLogo from '../components/WestpacLogo';
 import AssistantSheet from '../src/voice/AssistantSheet';
-import PersonalisedHome from '../src/personalise/PersonalisedHome';
+import PersonalisedHome, { HomeWidgets } from '../src/personalise/PersonalisedHome';
 import QuestionSheet from '../src/personalise/QuestionSheet';
-import { buildHome } from '../src/personalise/buildHome';
+import { buildHome, buildStandardHome } from '../src/personalise/buildHome';
+import { HomeStyleProvider } from '../src/personalise/ui';
 import {
   usePersonalisation,
   setPersonalisation,
@@ -18,39 +19,11 @@ import {
 } from '../src/personalise/store';
 import { createHomeTools } from '../src/personalise/homeTools';
 import { useTabBarSpace } from '../components/GlassTabBar';
+import { signOut } from '../src/session';
 
 // Brand colours used across the mockup
 const RED = '#D5002B';
 const NAVY = '#1F1C4F';
-const PURPLE = '#8A2BE2';
-
-// Mock data – swap for real data / API later
-const ACCOUNTS = [
-  { id: 'choice', name: 'Westpac Choice', balance: 469.3 },
-  { id: 'life', name: 'Westpac Life', balance: 15780.4 },
-  {
-    id: 'altitude',
-    name: 'Altitude Black\nMastercard',
-    balance: -3469.01,
-    available: 14469.95,
-    rewardPoints: 10469,
-    dueText: 'Min of $46.30 due tomorrow',
-  },
-];
-
-const formatMoney = (n) =>
-  `${n < 0 ? '-' : ''}$${Math.abs(n).toLocaleString('en-AU', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-
-// Read-only account summary shared with the AI assistant (names and balances only, per ai_perms.md)
-const ACCOUNT_SUMMARY = ACCOUNTS.map(
-  (a) =>
-    `${a.name.replace('\n', ' ')}: balance ${formatMoney(a.balance)}` +
-    (a.available != null ? `, available ${formatMoney(a.available)}` : '') +
-    (a.dueText ? `, ${a.dueText}` : ''),
-).join('\n');
 
 function Header({ onAsk, onVoice }) {
   const insets = useSafeAreaInsets();
@@ -69,7 +42,7 @@ function Header({ onAsk, onVoice }) {
             <Text style={styles.headerLink}>Contact us</Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={signOut}>
           <Text style={styles.headerLink}>Sign out</Text>
         </TouchableOpacity>
       </View>
@@ -97,38 +70,6 @@ function Header({ onAsk, onVoice }) {
         </TouchableOpacity>
       </View>
     </View>
-  );
-}
-
-function AccountCard({ account }) {
-  const { name, balance, available, rewardPoints, dueText } = account;
-
-  return (
-    <TouchableOpacity style={styles.card} activeOpacity={0.8}>
-      <View style={styles.cardBody}>
-        <Text style={styles.cardName}>{name}</Text>
-        <View style={styles.cardRight}>
-          <Text style={styles.cardBalance}>{formatMoney(balance)}</Text>
-          {available != null && (
-            <Text style={styles.cardMeta}>avail {formatMoney(available)}</Text>
-          )}
-          {rewardPoints != null && (
-            <Text style={styles.cardMeta}>
-              {rewardPoints.toLocaleString('en-AU')} reward points
-            </Text>
-          )}
-        </View>
-      </View>
-
-      {dueText && (
-        <View style={styles.cardFooter}>
-          <Text style={styles.dueText}>{dueText}</Text>
-          <TouchableOpacity style={styles.payButton}>
-            <Text style={styles.payButtonText}>Pay now</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </TouchableOpacity>
   );
 }
 
@@ -196,13 +137,16 @@ export default function HomeScreen() {
   );
 }
 
+// No saved widgets: the Westpac header, the "Make this home yours" banner, then every widget.
 function StandardHome({ onAsk, onVoice, onPersonalise }) {
   const tabBarSpace = useTabBarSpace();
+  const home = useMemo(buildStandardHome, []);
+  const { theme, d } = home;
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: tabBarSpace }}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.bg }]} contentContainerStyle={{ paddingBottom: tabBarSpace }}>
       <Header onAsk={onAsk} onVoice={onVoice} />
 
-      <View style={styles.panel}>
+      <View style={[styles.panel, { backgroundColor: theme.bg }]}>
         <TouchableOpacity style={styles.personaliseCard} onPress={onPersonalise} activeOpacity={0.85}>
           <Ionicons name="sparkles" size={22} color="#fff" />
           <View style={{ flex: 1 }}>
@@ -212,25 +156,9 @@ function StandardHome({ onAsk, onVoice, onPersonalise }) {
           <Ionicons name="chevron-forward" size={20} color="#fff" />
         </TouchableOpacity>
 
-        <View style={styles.panelHeader}>
-          <Text style={styles.panelTitle}>Accounts</Text>
-          <TouchableOpacity>
-            <Text style={styles.redLink}>New account</Text>
-          </TouchableOpacity>
-        </View>
-
-        {ACCOUNTS.map((a) => (
-          <AccountCard key={a.id} account={a} />
-        ))}
-
-        <View style={styles.panelFooter}>
-          <TouchableOpacity>
-            <Text style={styles.redLink}>2 hidden accounts</Text>
-          </TouchableOpacity>
-          <TouchableOpacity>
-            <Ionicons name="settings" size={22} color={RED} />
-          </TouchableOpacity>
-        </View>
+        <HomeStyleProvider value={{ theme, d, home }}>
+          <HomeWidgets home={home} />
+        </HomeStyleProvider>
       </View>
     </ScrollView>
   );
@@ -245,7 +173,7 @@ const styles = StyleSheet.create({
     backgroundColor: NAVY,
     borderRadius: 12,
     padding: 14,
-    marginBottom: 18,
+    marginHorizontal: 16,
   },
   personaliseTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
   personaliseText: { color: '#D9D6E6', fontSize: 13, marginTop: 2 },
@@ -303,68 +231,12 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 16, color: '#111827' },
 
-  // Accounts panel
+  // Panel under the header: the banner, then the widgets (which pad themselves)
   panel: {
-    backgroundColor: '#F9FAFB',
     marginTop: -36,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    paddingHorizontal: 16,
     paddingTop: 20,
+    paddingBottom: 20,
   },
-  panelHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  panelTitle: { fontSize: 18, fontWeight: '700', color: NAVY },
-  redLink: { color: RED, fontSize: 14 },
-  panelFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-
-  // Account card
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 6,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-    overflow: 'hidden',
-  },
-  cardBody: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 16,
-    minHeight: 76,
-  },
-  cardName: { fontSize: 16, color: '#111827', flexShrink: 1 },
-  cardRight: { alignItems: 'flex-end' },
-  cardBalance: { fontSize: 17, fontWeight: '700', color: '#111827' },
-  cardMeta: { fontSize: 13, color: '#4B5563', marginTop: 2 },
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  dueText: { fontSize: 13, color: '#4B5563' },
-  payButton: {
-    borderWidth: 1,
-    borderColor: RED,
-    borderRadius: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: '#fff',
-  },
-  payButtonText: { color: '#111827', fontSize: 13 },
 });
