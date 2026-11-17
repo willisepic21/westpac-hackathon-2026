@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 
 import WestpacLogo from '../../components/WestpacLogo';
+import ActionsCard from '../actions/ActionsCard';
 import { useTabBarSpace } from '../../components/GlassTabBar';
 import { HomeStyleProvider, T } from './ui';
 import GoalSection from './widgets/GoalWidgets';
@@ -92,6 +93,7 @@ export default function PersonalisedHome({ home, onEdit, onAsk, onVoice }) {
           <T v="title" style={{ marginTop: d.gap + 6 }}>{template.title}</T>
           <T v="small" muted style={{ marginTop: 4 }}>{home.tags}</T>
           <AskBar theme={theme} d={d} onAsk={onAsk} onVoice={onVoice} />
+          <ActionsCard colors={theme} style={{ marginTop: d.gap + 4 }} />
         </View>
 
         {home.sections.map((section, i) => {

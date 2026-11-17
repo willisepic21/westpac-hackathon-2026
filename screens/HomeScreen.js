@@ -4,6 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import WestpacLogo from '../components/WestpacLogo';
+import ActionsCard from '../src/actions/ActionsCard';
+import { actionTools } from '../src/actions/assistantTools';
 import AssistantSheet from '../src/voice/AssistantSheet';
 import PersonalisedHome from '../src/personalise/PersonalisedHome';
 import QuestionSheet from '../src/personalise/QuestionSheet';
@@ -144,10 +146,14 @@ export default function HomeScreen() {
     [personal],
   );
   // Lets the assistant see the widgets on Home, add / remove / move them, and change the theme.
-  const homeTools = useMemo(
-    () => createHomeTools({ getState: getPersonalisation, setSections: setHomeSections, setTheme, getCatalog }),
-    [],
-  );
+  // ...and set up / change / delete Actions (money automations), which the user approves first.
+  const homeTools = useMemo(() => {
+    const home = createHomeTools({ getState: getPersonalisation, setSections: setHomeSections, setTheme, getCatalog });
+    return {
+      tools: [...home.tools, ...actionTools.tools],
+      context: async () => `${await home.context()}\n\n${await actionTools.context()}`,
+    };
+  }, []);
 
   const onAsk = (question) => setAssistant({ question });
   const onVoice = () => setAssistant({ listen: true });
@@ -211,6 +217,8 @@ function StandardHome({ onAsk, onVoice, onPersonalise }) {
           </View>
           <Ionicons name="chevron-forward" size={20} color="#fff" />
         </TouchableOpacity>
+
+        <ActionsCard style={{ marginBottom: 18 }} />
 
         <View style={styles.panelHeader}>
           <Text style={styles.panelTitle}>Accounts</Text>

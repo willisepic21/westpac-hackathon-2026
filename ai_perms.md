@@ -18,3 +18,7 @@
 	- it only sees widget names and their order, not the balances or transactions inside them
 - AI can change the app's colour theme when the user asks, but only to a theme listed in the database
 	- the widgets and themes it can choose from are read from the database, through the app's API (never SQL)
+- AI can set up, change or delete Actions (automatic transfers between the user's own accounts) when the user asks
+	- every new or changed action is shown to the user to approve before it is saved
+	- it only sees account names and the action rules, never balances or transactions
+	- the user is alerted before each action runs and can skip it, edit it or delete it

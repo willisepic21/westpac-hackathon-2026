@@ -22,7 +22,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "db": "node database/server.mjs",
-    "test": "node --import ./tests/register-md.mjs --test tests/voice.test.mjs tests/personalise.test.mjs tests/database.test.mjs"
+    "test": "node --import ./tests/register-md.mjs --test tests/voice.test.mjs tests/personalise.test.mjs tests/database.test.mjs tests/actions.test.mjs"
   },
   "private": true
 }
