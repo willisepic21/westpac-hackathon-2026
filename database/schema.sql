@@ -40,7 +40,9 @@ CREATE TABLE IF NOT EXISTS widgets (
 CREATE TABLE IF NOT EXISTS homepage_widgets (
     user_ID    INTEGER NOT NULL REFERENCES users(ID),
     widget_ID  INTEGER NOT NULL REFERENCES widgets(widget_ID),
-    priority   INTEGER NOT NULL
+    priority   INTEGER NOT NULL,
+    variant    TEXT,      -- widget style, e.g. 'hero' / 'carousel' (null = the widget's default)
+    count      INTEGER    -- Recent transactions only: how many to show
 );
 
 INSERT OR IGNORE INTO widgets (widget_ID, name) VALUES

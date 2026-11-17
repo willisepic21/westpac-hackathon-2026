@@ -150,3 +150,44 @@ export function editLayout(sections, { action, type, variant, position }) {
 
   throw new Error(`Unknown action "${action}".`);
 }
+
+// ---- Manual editing (the "Customise" widget editor, src/personalise/WidgetEditor.js) ----
+
+/** Friendly names for variants, shown in the widget editor. */
+export const VARIANT_LABELS = {
+  hero: 'Big card',
+  carousel: 'Swipe row',
+  mini: 'Compact',
+  card: 'Card',
+  bars: 'Bars',
+  grid: 'Grid',
+  list: 'List',
+  button: 'Buttons',
+  slider: 'Slider',
+};
+
+/** How many transactions the Recent transactions widget can show. */
+export const RECENT_COUNTS = [3, 5, 8];
+
+/** Move the section at `index` up (delta -1) or down (+1). Returns a new list; out-of-range moves are ignored. */
+export function moveSection(sections, index, delta) {
+  const to = index + delta;
+  if (index < 0 || index >= sections.length || to < 0 || to >= sections.length) return sections;
+  const out = [...sections];
+  [out[index], out[to]] = [out[to], out[index]];
+  return out;
+}
+
+/** Change a section's settings (variant and/or count), keeping only values the widget supports. */
+export function updateSection(sections, index, { variant, count }) {
+  return sections.map((s, i) => {
+    if (i !== index) return s;
+    const next = { ...s };
+    if (variant !== undefined && WIDGETS[s.type].variants.includes(variant)) next.variant = variant;
+    if (count !== undefined && s.type === 'recent' && RECENT_COUNTS.includes(count)) next.count = count;
+    return next;
+  });
+}
+
+/** Widgets not on the home yet, in catalogue order. */
+export const missingWidgets = (sections) => WIDGET_TYPES.filter((type) => !sections.some((s) => s.type === type));

@@ -79,7 +79,7 @@ export function HomeWidgets({ home }) {
   });
 }
 
-export default function PersonalisedHome({ home, onEdit, onAsk, onVoice }) {
+export default function PersonalisedHome({ home, onEdit, onCustomise, onAsk, onVoice }) {
   const insets = useSafeAreaInsets();
   const tabBarSpace = useTabBarSpace();
   const { theme, d, template } = home;
@@ -94,9 +94,16 @@ export default function PersonalisedHome({ home, onEdit, onAsk, onVoice }) {
         <View style={{ paddingHorizontal: d.pad }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <WestpacLogo width={44} color={theme.dark ? theme.text : theme.link} />
-            <TouchableOpacity onPress={onEdit} hitSlop={8} accessibilityLabel="Edit home">
-              <Text style={{ color: theme.link, fontSize: d.small, fontWeight: '600' }}>Edit home</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 16 }}>
+              {onCustomise && (
+                <TouchableOpacity onPress={onCustomise} hitSlop={8} accessibilityLabel="Customise widgets">
+                  <Text style={{ color: theme.link, fontSize: d.small, fontWeight: '600' }}>Customise</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={onEdit} hitSlop={8} accessibilityLabel="Edit home">
+                <Text style={{ color: theme.link, fontSize: d.small, fontWeight: '600' }}>Edit home</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           <T v="title" style={{ marginTop: d.gap + 6 }}>{template.title}</T>
           <T v="small" muted style={{ marginTop: 4 }}>{home.tags}</T>

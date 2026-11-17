@@ -5,7 +5,9 @@
 //   GET /api/home       -> { userId, theme, themes: [{ name, label }], widgets: [{ id, name }], homepage: [widget ids, top first] }
 //   GET /api/banking    -> { accounts: [...], transactions: [...] } for the home widgets (never sent to the AI)
 //   PUT /api/theme      { theme: 'forest' }   saves customisation.theme
-//   PUT /api/homepage   { widgets: [1, 5, 7] } replaces homepage_widgets (priority 1 = top)
+//   PUT /api/homepage   { widgets: [1, 5, 7] } replaces homepage_widgets (priority 1 = top); entries can also be
+//                       { id, variant, count } to save each widget's style. GET /api/home returns those as
+//                       homepageSettings: [{ id, variant, count }].
 //   PUT /api/session    { email: 'will@example.com' } signs that user in -> { userId, name }
 //
 // Actions (money automations, rules in src/actions/rules.js):
@@ -53,6 +55,12 @@ export function createApi(db, { now = () => new Date() } = {}) {
     return row.user_ID;
   };
 
+  const homepageRows = (userId) =>
+    db
+      .prepare('SELECT widget_ID AS id, variant, count FROM homepage_widgets WHERE user_ID = ? ORDER BY priority')
+      .all(userId)
+      .map((r) => ({ ...r }));
+
   const getHome = () => {
     const userId = currentUser();
     return {
@@ -60,10 +68,8 @@ export function createApi(db, { now = () => new Date() } = {}) {
       theme: db.prepare('SELECT theme FROM customisation WHERE user_ID = ? LIMIT 1').get(userId)?.theme ?? null,
       themes: db.prepare('SELECT name, label FROM themes ORDER BY rowid').all().map((r) => ({ ...r })),
       widgets: db.prepare('SELECT widget_ID AS id, name FROM widgets ORDER BY widget_ID').all().map((r) => ({ ...r })),
-      homepage: db
-        .prepare('SELECT widget_ID FROM homepage_widgets WHERE user_ID = ? ORDER BY priority')
-        .all(userId)
-        .map((r) => r.widget_ID),
+      homepage: homepageRows(userId).map((r) => r.id),
+      homepageSettings: homepageRows(userId),
     };
   };
 
@@ -91,16 +97,29 @@ export function createApi(db, { now = () => new Date() } = {}) {
 
   const setHomepage = ({ widgets } = {}) => {
     if (!Array.isArray(widgets)) throw new HttpError(400, '"widgets" must be a list of widget IDs.');
+    // Each entry is a widget ID, or { id, variant, count } to keep the widget's style.
+    const rows = widgets.map((w) => {
+      const { id, variant = null, count = null } = typeof w === 'object' && w ? w : { id: w };
+      if (variant !== null && (typeof variant !== 'string' || variant.length > 20)) {
+        throw new HttpError(400, `Bad variant for widget ${id}.`);
+      }
+      if (count !== null && !(Number.isInteger(count) && count > 0 && count <= 20)) {
+        throw new HttpError(400, `Bad count for widget ${id}.`);
+      }
+      return { id, variant, count };
+    });
     const known = db.prepare('SELECT 1 FROM widgets WHERE widget_ID = ?');
-    widgets.forEach((id) => {
+    rows.forEach(({ id }) => {
       if (!known.get(id)) throw new HttpError(400, `Unknown widget ID ${id}.`);
     });
     const userId = currentUser();
-    const insert = db.prepare('INSERT INTO homepage_widgets (user_ID, widget_ID, priority) VALUES (?, ?, ?)');
+    const insert = db.prepare(
+      'INSERT INTO homepage_widgets (user_ID, widget_ID, priority, variant, count) VALUES (?, ?, ?, ?, ?)',
+    );
     db.exec('BEGIN');
     try {
       db.prepare('DELETE FROM homepage_widgets WHERE user_ID = ?').run(userId);
-      widgets.forEach((id, i) => insert.run(userId, id, i + 1));
+      rows.forEach((r, i) => insert.run(userId, r.id, i + 1, r.variant, r.count));
       db.exec('COMMIT');
     } catch (e) {
       db.exec('ROLLBACK');
@@ -308,10 +327,18 @@ export function createApi(db, { now = () => new Date() } = {}) {
   return api;
 }
 
+// Columns added to existing tables after app.db was first built (CREATE TABLE IF NOT EXISTS won't add them).
+export function migrate(db) {
+  const has = (table, column) => db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === column);
+  if (!has('homepage_widgets', 'variant')) db.exec('ALTER TABLE homepage_widgets ADD COLUMN variant TEXT');
+  if (!has('homepage_widgets', 'count')) db.exec('ALTER TABLE homepage_widgets ADD COLUMN count INTEGER');
+}
+
 function startServer({ file, port }) {
   const db = new DatabaseSync(file);
   // Bring app.db up to date with schema.sql (every statement is CREATE ... IF NOT EXISTS / INSERT OR IGNORE).
   db.exec(readFileSync(new URL('./schema.sql', import.meta.url), 'utf8'));
+  migrate(db);
   const api = createApi(db);
   const hits = new Map(); // client -> { start, count }
 

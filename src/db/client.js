@@ -38,7 +38,8 @@ async function call(method, path, body) {
 export const getHome = () => call('GET', '/api/home');
 export const getBanking = () => call('GET', '/api/banking');
 export const saveTheme = (theme) => call('PUT', '/api/theme', { theme });
-export const saveHomepage = (widgetIds) => call('PUT', '/api/homepage', { widgets: widgetIds });
+// widgets: IDs, or { id, variant, count } to keep each widget's style
+export const saveHomepage = (widgets) => call('PUT', '/api/homepage', { widgets });
 export const signIn = (email) => call('PUT', '/api/session', { email });
 
 // Actions (money automations). Account names only come back here, never balances.

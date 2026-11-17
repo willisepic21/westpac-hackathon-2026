@@ -66,6 +66,16 @@ for the ai implementation in the app all the rules for the ai are written in ai_
   run }`) and loops until it replies with text. `VoiceAssistant` takes `tools` plus `getContext()`, which is added
   to the system prompt fresh on every question.
 
+### Manual widget editing (no AI)
+
+"Customise" (personalised home header) / "Customise widgets" (standard home) opens `src/personalise/WidgetEditor.js`:
+move widgets up / down, remove them, add missing ones, and change each one's style (variant) or, for Recent
+transactions, how many to show. It edits a draft and saves with `setHomeSections()` (same path as the AI), so from
+the standard home it switches to a personalised home. Pure helpers `moveSection()`, `updateSection()`,
+`missingWidgets()`, `VARIANT_LABELS`, `RECENT_COUNTS` live in `widgetCatalog.js` (tested in
+`tests/widgetEditor.test.mjs`). Each widget's `variant` and `count` are saved in `homepage_widgets` and restored on
+sign-in (`homepageSettings` from `GET /api/home`); `migrate()` in `server.mjs` adds those columns to older `app.db`s.
+
 ### AI widget and theme editing
 
 The assistant can see which widgets are on Home and add, remove or move them when the user asks
@@ -125,7 +135,7 @@ Code lives in `src/personalise/`:
 - `store.js` keeps the finalised answers (and any AI widget edits) in memory so the home survives tab switches. The
   tab bar also reads it to pick its colours. Every change (questions finalised, AI edit, theme, reset) also saves the
   theme and Home widgets to the database, and `loadFromDatabase()` (called by `signIn()` in `src/session.js`) restores them on sign-in.
-  Restored widgets use their default variant, and the question answers themselves aren't saved.
+  Each widget's style (variant / count) is restored too; the question answers themselves aren't saved.
 - The standard home (no saved `homepage_widgets`) is the Westpac header + search, the "Make this home yours" banner, the Actions card,
   then every widget in `WIDGETS` order in Westpac colours (`buildStandardHome()` in `buildHome.js`, rendered with
   `HomeWidgets` from `PersonalisedHome.js`).

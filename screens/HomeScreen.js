@@ -9,6 +9,7 @@ import { actionTools } from '../src/actions/assistantTools';
 import AssistantSheet from '../src/voice/AssistantSheet';
 import PersonalisedHome, { HomeWidgets } from '../src/personalise/PersonalisedHome';
 import QuestionSheet from '../src/personalise/QuestionSheet';
+import WidgetEditor from '../src/personalise/WidgetEditor';
 import { buildHome, buildStandardHome } from '../src/personalise/buildHome';
 import { HomeStyleProvider } from '../src/personalise/ui';
 import {
@@ -82,6 +83,8 @@ export default function HomeScreen() {
   // Personalised home: finalised answers from the question pop-up (null = standard home)
   const personal = usePersonalisation();
   const [editing, setEditing] = useState(false);
+  // "Customise" widget editor: move / add / remove / restyle widgets without the AI.
+  const [customising, setCustomising] = useState(false);
   const home = useMemo(
     () => (personal ? buildHome(personal.answers, { sections: personal.sections }) : null),
     [personal],
@@ -109,6 +112,12 @@ export default function HomeScreen() {
         tools={homeTools.tools}
         getContext={homeTools.context}
       />
+      <WidgetEditor
+        visible={customising}
+        sections={(home ?? buildStandardHome()).sections}
+        onSave={setHomeSections}
+        onClose={() => setCustomising(false)}
+      />
       <QuestionSheet
         visible={editing}
         initialAnswers={personal?.answers}
@@ -134,9 +143,20 @@ export default function HomeScreen() {
   return (
     <View style={{ flex: 1 }}>
       {home ? (
-        <PersonalisedHome home={home} onEdit={() => setEditing(true)} onAsk={onAsk} onVoice={onVoice} />
+        <PersonalisedHome
+          home={home}
+          onEdit={() => setEditing(true)}
+          onCustomise={() => setCustomising(true)}
+          onAsk={onAsk}
+          onVoice={onVoice}
+        />
       ) : (
-        <StandardHome onAsk={onAsk} onVoice={onVoice} onPersonalise={() => setEditing(true)} />
+        <StandardHome
+          onAsk={onAsk}
+          onVoice={onVoice}
+          onPersonalise={() => setEditing(true)}
+          onCustomise={() => setCustomising(true)}
+        />
       )}
       {sheets}
     </View>
@@ -144,7 +164,7 @@ export default function HomeScreen() {
 }
 
 // No saved widgets: the Westpac header, the "Make this home yours" banner, then every widget.
-function StandardHome({ onAsk, onVoice, onPersonalise }) {
+function StandardHome({ onAsk, onVoice, onPersonalise, onCustomise }) {
   const tabBarSpace = useTabBarSpace();
   const home = useMemo(buildStandardHome, []);
   const { theme, d } = home;
@@ -164,6 +184,11 @@ function StandardHome({ onAsk, onVoice, onPersonalise }) {
 
         <ActionsCard style={{ marginHorizontal: 16, marginTop: 18 }} />
 
+        <TouchableOpacity style={styles.customiseRow} onPress={onCustomise} accessibilityLabel="Customise widgets">
+          <Ionicons name="options-outline" size={18} color={theme.link} />
+          <Text style={[styles.customiseText, { color: theme.link }]}>Customise widgets</Text>
+        </TouchableOpacity>
+
         <HomeStyleProvider value={{ theme, d, home }}>
           <HomeWidgets home={home} />
         </HomeStyleProvider>
@@ -173,6 +198,15 @@ function StandardHome({ onAsk, onVoice, onPersonalise }) {
 }
 
 const styles = StyleSheet.create({
+  customiseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    gap: 6,
+    marginTop: 14,
+    marginHorizontal: 16,
+  },
+  customiseText: { fontSize: 14, fontWeight: '600' },
   // "Make this home yours" banner that opens the question pop-up
   personaliseCard: {
     flexDirection: 'row',

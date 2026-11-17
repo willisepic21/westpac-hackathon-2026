@@ -44,9 +44,16 @@ const save = (what, promise) =>
     },
   );
 
-// Writes the widgets now on Home, top first (none on the standard home).
+// Writes the widgets now on Home, top first, with each one's style (none on the standard home).
 const saveWidgets = () =>
-  save('home widgets', db.saveHomepage(state ? currentHome().sections.map((s) => WIDGETS[s.type].id) : []));
+  save(
+    'home widgets',
+    db.saveHomepage(
+      state
+        ? currentHome().sections.map((s) => ({ id: WIDGETS[s.type].id, variant: s.variant ?? null, count: s.count ?? null }))
+        : [],
+    ),
+  );
 
 const saveCurrentTheme = () => {
   savedTheme = currentHome().paletteKey;
@@ -99,14 +106,24 @@ async function loadBanking() {
   }
 }
 
+// A section from a saved widget, keeping its style if the widget still supports it.
+const savedSection = ({ type, variant, count }) => {
+  const section = newSection(type, variant ?? undefined);
+  if (type === 'recent' && count) section.count = count;
+  return section;
+};
+
 async function loadHome() {
   try {
-    const { theme, homepage } = await db.getHome();
+    const { theme, homepage, homepageSettings } = await db.getHome();
     savedTheme = theme;
-    const types = homepage.map(widgetType).filter(Boolean);
+    // homepageSettings has each widget's saved style; older servers only send the IDs in `homepage`.
+    const saved = (homepageSettings ?? homepage.map((id) => ({ id })))
+      .map((w) => ({ ...w, type: widgetType(w.id) }))
+      .filter((w) => w.type);
     // Don't overwrite anything the user already changed while this was loading.
-    if (state || !types.length) return;
-    emit({ answers: startingAnswers(), sections: types.map((type) => newSection(type)) });
+    if (state || !saved.length) return;
+    emit({ answers: startingAnswers(), sections: saved.map(savedSection) });
   } catch (e) {
     console.warn(`Could not load the home from the database (is \`npm run db\` running?): ${e.message}`);
   }
