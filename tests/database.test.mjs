@@ -106,3 +106,15 @@ test('PUT /api/session signs in by email (any case) and switches whose home is r
   assert.equal(bad.status, 401);
   assert.equal(api('GET', '/api/home').json.userId, 2);
 });
+
+test('DELETE /api/session signs out until someone signs in again', () => {
+  const db = freshDb();
+  db.exec("UPDATE users SET email = 'will@example.com' WHERE ID = 1");
+  const api = createApi(db);
+  assert.equal(api('DELETE', '/api/session').status, 200);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM session').get().n, 0);
+  assert.equal(api('GET', '/api/home').status, 401);
+
+  assert.equal(api('PUT', '/api/session', { email: 'will@example.com' }).status, 200);
+  assert.equal(api('GET', '/api/home').json.userId, 1);
+});

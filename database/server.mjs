@@ -7,6 +7,7 @@
 //   PUT /api/theme      { theme: 'forest' }   saves customisation.theme
 //   PUT /api/homepage   { widgets: [1, 5, 7] } replaces homepage_widgets (priority 1 = top)
 //   PUT /api/session    { email: 'will@example.com' } signs that user in -> { userId, name }
+//   DELETE /api/session  signs out: empties the session table (other calls then fail with 401 until a sign-in)
 //
 // Actions (money automations, rules in src/actions/rules.js):
 //   GET    /api/actions               -> { accounts: [{ id, name }], actions: [...] } (account names only, no balances)
@@ -49,7 +50,7 @@ export function createApi(db, { now = () => new Date() } = {}) {
 
   const currentUser = () => {
     const row = db.prepare('SELECT user_ID FROM session WHERE ID = 1').get();
-    if (!row) throw new HttpError(500, 'Nobody is signed in (the session table is empty).');
+    if (!row) throw new HttpError(401, 'Nobody is signed in (the session table is empty).');
     return row.user_ID;
   };
 
@@ -273,12 +274,18 @@ export function createApi(db, { now = () => new Date() } = {}) {
   };
 
   // [method, path (":id" = a number), handler(params, body)]
+  const signOut = () => {
+    db.prepare('DELETE FROM session').run();
+    return { signedOut: true };
+  };
+
   const routes = [
     ['GET', '/api/home', () => getHome()],
     ['GET', '/api/banking', () => getBanking()],
     ['PUT', '/api/theme', (_, body) => setTheme(body)],
     ['PUT', '/api/homepage', (_, body) => setHomepage(body)],
     ['PUT', '/api/session', (_, body) => signIn(body)],
+    ['DELETE', '/api/session', () => signOut()],
     ['GET', '/api/actions', () => listActions()],
     ['POST', '/api/actions', (_, body) => createAction(body)],
     ['PUT', '/api/actions/:id', updateAction],

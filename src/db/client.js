@@ -40,6 +40,7 @@ export const getBanking = () => call('GET', '/api/banking');
 export const saveTheme = (theme) => call('PUT', '/api/theme', { theme });
 export const saveHomepage = (widgetIds) => call('PUT', '/api/homepage', { widgets: widgetIds });
 export const signIn = (email) => call('PUT', '/api/session', { email });
+export const signOut = () => call('DELETE', '/api/session');
 
 // Actions (money automations). Account names only come back here, never balances.
 export const getActions = () => call('GET', '/api/actions'); // { accounts: [{ id, name }], actions: [...] }
