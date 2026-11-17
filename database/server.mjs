@@ -119,12 +119,6 @@ export function createApi(db, { now = () => new Date() } = {}) {
     return { userId: user.ID, name: user.name };
   };
 
-  const routes = {
-    'GET /api/home': getHome,
-    'GET /api/banking': getBanking,
-    'PUT /api/theme': setTheme,
-    'PUT /api/homepage': setHomepage,
-    'PUT /api/session': signIn,
   // ---- Actions ----
 
   const userAccounts = (userId) =>
@@ -284,6 +278,7 @@ export function createApi(db, { now = () => new Date() } = {}) {
     ['GET', '/api/banking', () => getBanking()],
     ['PUT', '/api/theme', (_, body) => setTheme(body)],
     ['PUT', '/api/homepage', (_, body) => setHomepage(body)],
+    ['PUT', '/api/session', (_, body) => signIn(body)],
     ['GET', '/api/actions', () => listActions()],
     ['POST', '/api/actions', (_, body) => createAction(body)],
     ['PUT', '/api/actions/:id', updateAction],

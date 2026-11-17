@@ -5,6 +5,8 @@
 import { useSyncExternalStore } from 'react';
 
 import * as db from './db/client';
+import { refreshActions } from './actions/store';
+import { navigate } from './navigation';
 import { clearLocal, loadFromDatabase } from './personalise/store';
 
 let user = null; // { userId, name, email, offline? }
@@ -27,8 +29,12 @@ export async function signIn(email) {
     next = { userId: null, name: null, email, offline: true };
   }
   clearLocal();
+  navigate('Home');
   emit(next);
-  if (!next.offline) loadFromDatabase();
+  if (!next.offline) {
+    loadFromDatabase();
+    refreshActions(); // the Actions list + alert are per user
+  }
   return next;
 }
 

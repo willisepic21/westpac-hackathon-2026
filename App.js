@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -12,7 +11,6 @@ import MoreScreen from './screens/MoreScreen';
 import SignInScreen from './screens/SignInScreen';
 import GlassTabBar from './components/GlassTabBar';
 import { useUser } from './src/session';
-import { loadFromDatabase } from './src/personalise/store';
 import ActionAlert from './src/actions/ActionAlert';
 import { startActionPolling } from './src/actions/store';
 import { navigate, useRoute } from './src/navigation';
@@ -51,18 +49,13 @@ export default function App() {
   );
 }
 
-// Remounts on every sign-in, so each user starts on Home.
+// Shown once signed in (signIn() in src/session.js also loads the user's home and sends them to Home).
 function Tabs() {
-  const [activeTab, setActiveTab] = useState('Home');
-  const Screen = SCREENS[activeTab] ?? HomeScreen;
-
   // Tab (and sub-screen) live in src/navigation.js so other screens can navigate, e.g. Home -> More > Actions.
   const { tab: activeTab } = useRoute();
   const Screen = SCREENS[activeTab] ?? HomeScreen;
 
-  // Restore the saved theme and home widgets (needs `npm run db`; without it the app starts fresh).
   useEffect(() => {
-    loadFromDatabase();
     // Loads Actions and re-checks them every minute for the "about to run" alert.
     startActionPolling();
   }, []);

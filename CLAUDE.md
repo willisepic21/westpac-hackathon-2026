@@ -41,7 +41,7 @@ for the ai implementation in the app all the rules for the ai are written in ai_
   **Every screen must pad its bottom with `useTabBarSpace()`** (exported from `GlassTabBar.js`) so content scrolls
   clear of the bar.
 - Sign-in: `App.js` shows `screens/SignInScreen.js` until `useUser()` (`src/session.js`) has a user. `signIn(email)`
-  calls `PUT /api/session`, which sets the `session` user, then loads their home + banking data. Demo only: the
+  calls `PUT /api/session`, which sets the `session` user, then loads their home, banking data and Actions and opens the Home tab. Demo only: the
   `users` table has no passwords, so any password works; if the API is down it signs in offline with mock data.
   `signOut()` (the standard home's "Sign out" link) clears the local home and returns to the sign-in page.
 - `components/WestpacLogo.js` SVG Westpac "W" logo (`react-native-svg`), props `width` / `color`.
@@ -124,9 +124,9 @@ Code lives in `src/personalise/`:
   `MoveMoney.js`) and share `ui.js` (Card, Carousel, Bar, Gauge...).
 - `store.js` keeps the finalised answers (and any AI widget edits) in memory so the home survives tab switches. The
   tab bar also reads it to pick its colours. Every change (questions finalised, AI edit, theme, reset) also saves the
-  theme and Home widgets to the database, and `loadFromDatabase()` (called once in `App.js`) restores them on launch.
+  theme and Home widgets to the database, and `loadFromDatabase()` (called by `signIn()` in `src/session.js`) restores them on sign-in.
   Restored widgets use their default variant, and the question answers themselves aren't saved.
-- The standard home (no saved `homepage_widgets`) is the Westpac header + search, the "Make this home yours" banner,
+- The standard home (no saved `homepage_widgets`) is the Westpac header + search, the "Make this home yours" banner, the Actions card,
   then every widget in `WIDGETS` order in Westpac colours (`buildStandardHome()` in `buildHome.js`, rendered with
   `HomeWidgets` from `PersonalisedHome.js`).
 - `screens/HomeScreen.js` shows the standard home until answers are finalised or widgets are saved,
@@ -179,9 +179,8 @@ it in templates.
   `UPDATE session SET user_ID = 2;`.
 - `database/server.mjs` (`npm run db`, port 3001, built-in `node:sqlite`) is the only way in: `GET /api/home`,
   `GET /api/banking` (accounts + transactions, for the widgets only, never the AI), `PUT /api/theme`,
-  `PUT /api/homepage`, `PUT /api/session` (`{ email }`, signs that user in), always for the `session` user, rate-limited. `src/db/client.js` calls it
-  `PUT /api/homepage`, and `/api/actions` (`GET`, `POST`, `PUT|DELETE /:id`, `POST /:id/skip|dismiss|run`), always
-  for the `session` user, rate-limited. `src/db/client.js` calls it
+  `PUT /api/homepage`, `PUT /api/session` (`{ email }`, signs that user in), and `/api/actions` (`GET`, `POST`,
+  `PUT|DELETE /:id`, `POST /:id/skip|dismiss|run`), always for the `session` user, rate-limited. `src/db/client.js` calls it
   (`EXPO_PUBLIC_DB_URL` overrides the address). Per `ai_perms.md`, the AI never gets direct SQL or write access.
 - Transaction dates in `app.db` are `dd/mm/yyyy` (not ISO as the schema comment says), so don't sort them as text;
   `parseDate()` in `bankData.js` reads both.

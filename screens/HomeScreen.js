@@ -162,30 +162,11 @@ function StandardHome({ onAsk, onVoice, onPersonalise }) {
           <Ionicons name="chevron-forward" size={20} color="#fff" />
         </TouchableOpacity>
 
+        <ActionsCard style={{ marginHorizontal: 16, marginTop: 18 }} />
+
         <HomeStyleProvider value={{ theme, d, home }}>
           <HomeWidgets home={home} />
         </HomeStyleProvider>
-        <ActionsCard style={{ marginBottom: 18 }} />
-
-        <View style={styles.panelHeader}>
-          <Text style={styles.panelTitle}>Accounts</Text>
-          <TouchableOpacity>
-            <Text style={styles.redLink}>New account</Text>
-          </TouchableOpacity>
-        </View>
-
-        {ACCOUNTS.map((a) => (
-          <AccountCard key={a.id} account={a} />
-        ))}
-
-        <View style={styles.panelFooter}>
-          <TouchableOpacity>
-            <Text style={styles.redLink}>2 hidden accounts</Text>
-          </TouchableOpacity>
-          <TouchableOpacity>
-            <Ionicons name="settings" size={22} color={RED} />
-          </TouchableOpacity>
-        </View>
       </View>
     </ScrollView>
   );
