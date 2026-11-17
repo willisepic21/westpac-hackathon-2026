@@ -53,6 +53,8 @@ for the ai implementation in the app all the rules for the ai are written in ai_
   let Metro import `.md` as a string; `tests/register-md.mjs` does the same for Node), so edit the rules in
   `ai_perms.md`, not in code.
 - Needs `EXPO_PUBLIC_GROQ_API_KEY` in `.env` (see `.env.example`). The key is bundled into the app — demo only.
+- Closing the assistant sheet clears the chat: the AI forgets the conversation (`VoiceAssistant.reset()`) and any
+  reply still loading is dropped, so each time it opens is a fresh chat.
 - Replies are capped at 600 tokens (Groq free tier: 1000 output tokens/min), plain text only (no markdown).
   429 rate-limit errors are retried automatically if Groq asks for a wait of 20s or less.
 - Tool calling: `chatWithTools()` in `groq.js` runs any tools the AI asks for (`{ name, description, parameters,

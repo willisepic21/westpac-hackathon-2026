@@ -48,6 +48,7 @@ export class VoiceAssistant {
       ? `${systemPrompt}\n\nAccount summary (read-only):\n${context}`
       : systemPrompt;
     this.messages = [{ role: 'system', content }];
+    this.session = 0;
   }
 
   /** Speech-to-text: recording URI -> transcript. */
@@ -61,6 +62,7 @@ export class VoiceAssistant {
 
   /** Send text to the AI, remembering the conversation. Returns the reply text. */
   async ask(text) {
+    const session = this.session;
     const [system, ...rest] = this.messages;
     const live = this.getContext
       ? { role: 'system', content: `${system.content}\n\n${await this.getContext()}` }
@@ -72,7 +74,8 @@ export class VoiceAssistant {
       apiKey: this.apiKey,
     });
     // Keep the base system prompt; the live context is rebuilt next time.
-    this.messages = [system, ...messages.slice(1)];
+    // Skip if reset() was called while waiting, so a late reply can't bring the old chat back.
+    if (session === this.session) this.messages = [system, ...messages.slice(1)];
     return reply;
   }
 
@@ -88,7 +91,9 @@ export class VoiceAssistant {
     return { transcript, reply };
   }
 
+  /** Forget the conversation (keeps the system prompt). */
   reset() {
+    this.session += 1;
     this.messages = this.messages.slice(0, 1);
   }
 }
