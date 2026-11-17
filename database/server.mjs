@@ -391,7 +391,9 @@ function startServer({ file, port }) {
   createServer(async (req, res) => {
     if (req.method === 'OPTIONS') return send(res, 204);
 
-    const client = req.socket.remoteAddress;
+    // Behind a host's proxy (Render, Railway...) every request comes from the proxy, so use the visitor's
+    // address from X-Forwarded-For when it's there; otherwise all users would share one rate limit.
+    const client = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.socket.remoteAddress;
     const now = Date.now();
     const hit = hits.get(client);
     if (!hit || now - hit.start > 60_000) hits.set(client, { start: now, count: 1 });
@@ -426,6 +428,7 @@ function startServer({ file, port }) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   startServer({
     file: fileURLToPath(new URL('./app.db', import.meta.url)),
-    port: Number(process.env.DB_PORT) || 3001,
+    // Hosting services set PORT; DB_PORT still works locally.
+    port: Number(process.env.PORT || process.env.DB_PORT) || 3001,
   });
 }
