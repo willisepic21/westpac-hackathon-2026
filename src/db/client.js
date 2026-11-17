@@ -41,6 +41,7 @@ export const saveTheme = (theme) => call('PUT', '/api/theme', { theme });
 // widgets: IDs, or { id, variant, count } to keep each widget's style
 export const saveHomepage = (widgets) => call('PUT', '/api/homepage', { widgets });
 export const signIn = (email) => call('PUT', '/api/session', { email });
+export const signOut = () => call('DELETE', '/api/session');
 
 // Actions (money automations). Account names only come back here, never balances.
 export const getActions = () => call('GET', '/api/actions'); // { accounts: [{ id, name }], actions: [...] }

@@ -56,15 +56,13 @@ INSERT OR IGNORE INTO widgets (widget_ID, name) VALUES
     (8, 'Move money'),
     (9, 'Total available');
 
--- Who is currently signed into the app. Always exactly one row (ID is locked to 1);
--- switch user with: UPDATE session SET user_ID = 2;
+-- Who is currently signed into the app: one row (ID is locked to 1), or none when signed out.
+-- The app's sign-in page fills it (PUT /api/session) and Sign out empties it (DELETE /api/session).
+-- Switch user by hand with: UPDATE session SET user_ID = 2;
 CREATE TABLE IF NOT EXISTS session (
     ID       INTEGER PRIMARY KEY CHECK (ID = 1),
     user_ID  INTEGER NOT NULL DEFAULT 1 REFERENCES users(ID)
 );
-
--- Sign in as user 1 by default (skipped on an empty database with no users yet).
-INSERT OR IGNORE INTO session (ID, user_ID) SELECT 1, 1 WHERE EXISTS (SELECT 1 FROM users WHERE ID = 1);
 
 -- Every colour theme the app can use (keep in sync with PALETTES in src/personalise/themes.js).
 -- `name` is what customisation.theme stores; `label` is the readable name shown to the AI.

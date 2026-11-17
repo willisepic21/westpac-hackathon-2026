@@ -7,6 +7,7 @@ import { useTabBarSpace } from '../components/GlassTabBar';
 import ActionsScreen from '../src/actions/ActionsScreen';
 import { useActions } from '../src/actions/store';
 import { navigate, useRoute } from '../src/navigation';
+import { signOut, useUser } from '../src/session';
 
 const NAVY = '#1F1C4F';
 
@@ -26,6 +27,7 @@ function MoreMenu() {
   const insets = useSafeAreaInsets();
   const tabBarSpace = useTabBarSpace();
   const { actions } = useActions();
+  const user = useUser();
 
   const items = [
     {
@@ -57,6 +59,16 @@ function MoreMenu() {
         </Pressable>
       ))}
       <Text style={styles.subtitle}>More sections are waiting for teammate mockups.</Text>
+
+      <Pressable style={[styles.row, styles.signOut]} onPress={signOut} accessibilityRole="button">
+        <Ionicons name="log-out-outline" size={22} color="#D5002B" />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.signOutText}>Sign out</Text>
+          {user?.name || user?.email ? (
+            <Text style={styles.rowSubtitle}>Signed in as {user.name ?? user.email}</Text>
+          ) : null}
+        </View>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -76,4 +88,6 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
   rowSubtitle: { fontSize: 13, color: '#6B7280', marginTop: 2 },
   subtitle: { fontSize: 13, color: '#6B7280', textAlign: 'center', marginTop: 8 },
+  signOut: { marginTop: 12 },
+  signOutText: { fontSize: 16, fontWeight: '700', color: '#D5002B' },
 });

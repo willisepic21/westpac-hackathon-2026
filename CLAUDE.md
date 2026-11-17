@@ -43,7 +43,8 @@ for the ai implementation in the app all the rules for the ai are written in ai_
 - Sign-in: `App.js` shows `screens/SignInScreen.js` until `useUser()` (`src/session.js`) has a user. `signIn(email)`
   calls `PUT /api/session`, which sets the `session` user, then loads their home, banking data and Actions and opens the Home tab. Demo only: the
   `users` table has no passwords, so any password works; if the API is down it signs in offline with mock data.
-  `signOut()` (the standard home's "Sign out" link) clears the local home and returns to the sign-in page.
+  `signOut()` ("Sign out" on the More menu and the standard home) calls `DELETE /api/session`, clears the local
+  home and returns to the sign-in page.
 - `components/WestpacLogo.js` SVG Westpac "W" logo (`react-native-svg`), props `width` / `color`.
 - `screens/` has one file per tab, each owned by a teammate to build their mockup:
   `HomeScreen.js` (built), `AccountsScreen.js`, `SearchScreen.js`, `PaymentsScreen.js`, `MoreScreen.js` (placeholders).
@@ -185,11 +186,12 @@ it in templates.
   skipped / failed). `server.mjs` runs due actions on start and every minute: it moves the balances and adds a pair of
   `Payment to/from Westpac ...` transactions (so they don't count as spending). `npm run db` also applies
   `schema.sql` to `app.db` on start, so new tables appear automatically.
-- `session` holds who is signed in: always one row (`ID` locked to 1), `user_ID` defaults to 1. Switch user with
-  `UPDATE session SET user_ID = 2;`.
+- `session` holds who is signed in: one row (`ID` locked to 1) while signed in, empty when signed out (other API
+  calls then return 401). The sign-in page fills it (`PUT /api/session`), Sign out empties it (`DELETE /api/session`);
+  there is no default user any more. Switch user by hand with `UPDATE session SET user_ID = 2;`.
 - `database/server.mjs` (`npm run db`, port 3001, built-in `node:sqlite`) is the only way in: `GET /api/home`,
   `GET /api/banking` (accounts + transactions, for the widgets only, never the AI), `PUT /api/theme`,
-  `PUT /api/homepage`, `PUT /api/session` (`{ email }`, signs that user in), and `/api/actions` (`GET`, `POST`,
+  `PUT /api/homepage`, `PUT /api/session` (`{ email }`, signs that user in), `DELETE /api/session` (signs out), and `/api/actions` (`GET`, `POST`,
   `PUT|DELETE /:id`, `POST /:id/skip|dismiss|run`), always for the `session` user, rate-limited. `src/db/client.js` calls it
   (`EXPO_PUBLIC_DB_URL` overrides the address). Per `ai_perms.md`, the AI never gets direct SQL or write access.
 - Transaction dates in `app.db` are `dd/mm/yyyy` (not ISO as the schema comment says), so don't sort them as text;

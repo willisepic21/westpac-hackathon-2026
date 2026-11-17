@@ -149,7 +149,7 @@ SQLite (`app.db`, built from `schema.sql`), served by `server.mjs` using Node's 
 
 - Tables: `users`, `accounts`, `transactions`, `themes`, `customisation` (each user's theme), `widgets`
   (the 9 widgets, in `WIDGETS` order), `homepage_widgets` (which widgets each user has on Home, priority 1 = top)
-  and `session` (who is signed in, user 1 by default; switch with `UPDATE session SET user_ID = 2;`).
+  and `session` (who is signed in: set by the sign-in page, emptied by Sign out; switch by hand with `UPDATE session SET user_ID = 2;`).
 - API (port 3001, rate-limited, always for the session user):
   - `GET /api/home`: theme, Home widgets, and the widget / theme catalog
   - `GET /api/banking`: accounts and transactions, for the widgets only (never the AI)

@@ -38,7 +38,16 @@ export async function signIn(email) {
   return next;
 }
 
-export function signOut() {
+// Clears the signed-in user from the database's session table, then shows the sign-in page.
+// Waits for the database first, so a quick sign-in afterwards can't be wiped by a late sign-out.
+export async function signOut() {
+  if (user && !user.offline) {
+    try {
+      await db.signOut();
+    } catch (e) {
+      console.warn(`Could not clear the session in the database: ${e.message}`);
+    }
+  }
   clearLocal();
   emit(null);
 }
