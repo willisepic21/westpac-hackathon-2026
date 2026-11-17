@@ -1,6 +1,11 @@
-This is a project for the westpac hackathon 2026.
+This is a project by team **Who's Json** for the Westpac Hackathon 2026.
 
 The aim of the project is a proof of concept of a ai driven personalising home page.
+
+**Status: finished.** The hackathon is over and the proof of concept is complete. `README.md` is the public
+showcase (screenshots, features, getting started) and `presentation/` has the slides
+(`Westpac-Personalised-Home.pptx`) and the screenshots the README uses (`presentation/screens/`). Keep both in sync
+if anything changes.
 
 for the ai implementation in the app all the rules for the ai are written in ai_perms.md
 (including what it may do to the home page widgets).
@@ -17,12 +22,13 @@ for the ai implementation in the app all the rules for the ai are written in ai_
 | AI rules (`ai_perms.md`) wired into the assistant prompt | Done |
 | AI adds / removes / moves Home widgets on request | Done, tested |
 | AI changes the colour theme on request | Done, tested |
-| SQLite database + API (`database/`) | Theme + Home widgets saved and restored; widgets show DB accounts + transactions |
+| SQLite database + API (`database/`) | Done: saves theme, widgets, wallpaper, Actions; widgets show DB accounts + transactions |
 | Actions: AI-set-up money automations, alerts, More > Actions page, Home card | Done, tested |
-| Accounts, Payments, Search screens | Placeholders, waiting on teammate mockups |
+| Accounts, Payments, Search screens | Placeholders (out of scope for the proof of concept) |
 | Wallpapers: More > Wallpaper picker, shown behind both homes, saved per user | Done, tested |
-| More screen | Menu with Actions and Wallpaper; other sections waiting on teammate mockups |
-| Persisting personalisation across reloads | Theme + widgets persist (via `npm run db`); question answers don't |
+| More screen | Menu with Actions, Wallpaper and Sign out |
+| Persisting personalisation across reloads | Theme, widgets, wallpaper + Actions persist (via `npm run db`); question answers don't |
+| README showcase + presentation slides | Done |
 
 ## App structure
 
@@ -48,8 +54,9 @@ for the ai implementation in the app all the rules for the ai are written in ai_
   `signOut()` ("Sign out" on the More menu and the standard home) calls `DELETE /api/session`, clears the local
   home and returns to the sign-in page.
 - `components/WestpacLogo.js` SVG Westpac "W" logo (`react-native-svg`), props `width` / `color`.
-- `screens/` has one file per tab, each owned by a teammate to build their mockup:
-  `HomeScreen.js` (built), `AccountsScreen.js`, `SearchScreen.js`, `PaymentsScreen.js`, `MoreScreen.js` (placeholders).
+- `screens/` has one file per tab: `SignInScreen.js`, `HomeScreen.js` and `MoreScreen.js` (Actions, Wallpaper,
+  Sign out) are built; `AccountsScreen.js`, `SearchScreen.js` and `PaymentsScreen.js` are placeholders that were
+  left out of scope for the hackathon.
 
 ## AI assistant (built)
 
